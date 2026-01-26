@@ -1,0 +1,85 @@
+import { Facebook, Instagram, Twitter, Mail, Phone, MapPin } from 'lucide-react';
+
+export default function Footer() {
+    return (
+        <footer className="bg-slate-900 text-white pt-16 pb-8">
+            <div className="container mx-auto px-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
+                    {/* Brand */}
+                    <div className="space-y-4">
+                        <h3 className="text-2xl font-serif font-bold text-primary-400">Travel</h3>
+                        <p className="text-slate-400 text-sm leading-relaxed">
+                            Khám phá vẻ đẹp Việt Nam.
+                            Lịch trình được cá nhân hóa dành riêng cho bạn.
+                        </p>
+                    </div>
+
+                    {/* Quick Links */}
+                    <div>
+                        <h4 className="font-bold text-lg mb-6">Liên kết nhanh</h4>
+                        <ul className="space-y-3 text-slate-400 text-sm">
+                            <li><a href="/" className="hover:text-primary-400 transition-colors">Trang chủ</a></li>
+                            <li><a href="/explore" className="hover:text-primary-400 transition-colors">Khám phá</a></li>
+                            <li><a href="/recommend" className="hover:text-primary-400 transition-colors">Gợi ý cho bạn</a></li>
+                            <li><a href="/about" className="hover:text-primary-400 transition-colors">Về chúng tôi</a></li>
+                        </ul>
+                    </div>
+
+                    {/* Contact */}
+                    <div>
+                        <h4 className="font-bold text-lg mb-6">Liên hệ</h4>
+                        <ul className="space-y-4 text-slate-400 text-sm">
+                            <li className="flex items-start gap-3">
+                                <MapPin className="w-5 h-5 text-primary-400 shrink-0" />
+                                <span>123 Đường Nguyen Hue, Quận 1, TP. Hồ Chí Minh</span>
+                            </li>
+                            <li className="flex items-center gap-3">
+                                <Phone className="w-5 h-5 text-primary-400 shrink-0" />
+                                <span>+84 (028) 3838 3838</span>
+                            </li>
+                            <li className="flex items-center gap-3">
+                                <Mail className="w-5 h-5 text-primary-400 shrink-0" />
+                                <span>contact@travel.vn</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    {/* Newsletter */}
+                    <div>
+                        <h4 className="font-bold text-lg mb-6">Đăng ký nhận tin</h4>
+                        <p className="text-slate-400 text-sm mb-4">
+                            Nhận những gợi ý du lịch mới nhất hàng tuần.
+                        </p>
+                        <form className="space-y-2">
+                            <input
+                                type="email"
+                                placeholder="Email của bạn"
+                                className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                            />
+                            <button className="w-full px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors text-sm font-medium">
+                                Đăng ký
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div className="border-t border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+                    <p className="text-slate-500 text-sm">
+                        © 2024 Travel. All rights reserved.
+                    </p>
+                    <div className="flex gap-4">
+                        <a href="#" className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-primary-600 transition-all">
+                            <Facebook className="w-4 h-4" />
+                        </a>
+                        <a href="#" className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-primary-600 transition-all">
+                            <Instagram className="w-4 h-4" />
+                        </a>
+                        <a href="#" className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-primary-600 transition-all">
+                            <Twitter className="w-4 h-4" />
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    );
+}

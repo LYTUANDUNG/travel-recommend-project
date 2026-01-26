@@ -1,0 +1,173 @@
+# Database Design - Personalized Travel Recommendation System (Thesis/AI Ready)
+**Technology**: MySQL
+**Purpose**: Support **Content-Based Filtering** (rich attributes) and **Collaborative Filtering** (rich interactions).
+
+## 1. User Management (User Profile)
+Enhanced for Demographic Filtering and cold-start handling.
+```sql
+CREATE TABLE users (
+    user_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    full_name VARCHAR(100),
+    phone_number VARCHAR(20),
+    avatar_url VARCHAR(255),
+    -- Demographic Fields for Hybrid/Demographic Filtering
+    gender ENUM('MALE', 'FEMALE', 'OTHER'),
+    birth_year INT, 
+    nationality VARCHAR(50), 
+    role ENUM('USER', 'ADMIN', 'PARTNER') DEFAULT 'USER',
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_login TIMESTAMP
+);
+```
+
+## 2. Location Data (Item Profile)
+Rich attributes for Content-Based logic (Vector Space Model readiness).
+```sql
+CREATE TABLE locations (
+    location_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT, -- Source for TF-IDF/NLP processing
+    -- Geography
+    address VARCHAR(255),
+    ward VARCHAR(100),
+    district VARCHAR(100),
+    province VARCHAR(100),
+    latitude DOUBLE NOT NULL,
+    longitude DOUBLE NOT NULL,
+    -- Attributes for Filtering
+    category_id BIGINT, -- FK to Categories
+    price_level INT, -- 1: Cheap, 2: Moderate, 3: Expensive, 4: Luxury
+    price_range_str VARCHAR(50), -- Display text like "200k - 500k"
+    opening_hour TIME,
+    closing_hour TIME,
+    -- Metatdata
+    thumbnail_url VARCHAR(255),
+    average_rating DOUBLE DEFAULT 0.0,
+    total_reviews INT DEFAULT 0,
+    -- Vector Placeholder (Optional for advanced DBs, simulated here)
+    -- content_vector JSON, -- Reserved for pre-computed feature embeddings
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+## 3. Categories & Tags (Features)
+Granular features for calculating Item-Item Similarity (Jaccard/Cosine Similarity).
+```sql
+CREATE TABLE categories (
+    category_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(50) NOT NULL UNIQUE, -- e.g., 'Eco-Tourism', 'Historical', 'Resort'
+    slug VARCHAR(50)
+);
+
+CREATE TABLE tags (
+    tag_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(50) NOT NULL UNIQUE, -- e.g., 'Wifi', 'Hiking', 'Vegan', 'Pet Friendly'
+    weight DOUBLE DEFAULT 1.0 -- Importance weight for this feature
+);
+
+-- Many-to-Many: Locations <-> Tags
+CREATE TABLE location_tags (
+    location_id BIGINT NOT NULL,
+    tag_id BIGINT NOT NULL,
+    score DOUBLE DEFAULT 1.0, -- How strongly this tag applies (can be binary 1 or fuzzy 0.8)
+    PRIMARY KEY (location_id, tag_id),
+    FOREIGN KEY (location_id) REFERENCES locations(location_id),
+    FOREIGN KEY (tag_id) REFERENCES tags(tag_id)
+);
+```
+
+## 4. User Interaction Data (Explicit Feedback)
+The "Golde Standard" for Collaborative Filtering (User-Item Matrix).
+```sql
+CREATE TABLE reviews (
+    review_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    location_id BIGINT NOT NULL,
+    rating INT CHECK (rating BETWEEN 1 AND 5), -- EXPLICIT RATING
+    comment TEXT, -- NLP Sentiment Analysis source
+    images_json JSON, -- List of image URLs uploaded by user
+    verify_status ENUM('PENDING', 'APPROVED', 'REJECTED') DEFAULT 'PENDING',
+    visit_date DATE,
+    trip_type VARCHAR(50), -- Context: Solo, Family, Couple
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    FOREIGN KEY (location_id) REFERENCES locations(location_id),
+    UNIQUE(user_id, location_id) -- Only one review per location per user
+);
+```
+
+## 5. Behavioral Data (Implicit Feedback)
+Critical for training models when explicit ratings are sparse (Sparsity Problem).
+Tracks "Interest" without requiring a click.
+```sql
+CREATE TABLE user_behavior_logs (
+    log_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT, -- Nullable for Guest (track via session_id/cookie)
+    session_id VARCHAR(100), -- For Guest tracking
+    location_id BIGINT NOT NULL,
+    action_type ENUM(
+        'VIEW_DETAILS',   -- High interest
+        'CLICK_BOOKING',  -- Very High interest (proxy for Conversion)
+        'ADD_FAVORITE',   -- Explicit high interest (Binary 1)
+        'VIEW_MAP',       -- Medium interest
+        'SEARCH_QUERY'    -- Contextual interest
+    ) NOT NULL,
+    time_spent_seconds INT DEFAULT 0, -- Dwell time (very strong signal)
+    device_type VARCHAR(50), -- Context (Mobile/Desktop)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+## 6. Personalization Cold-Start (Onboarding)
+```sql
+CREATE TABLE user_interest_profiles (
+    user_id BIGINT NOT NULL,
+    category_id BIGINT NOT NULL,
+    affinity_score DOUBLE DEFAULT 0.5, -- 0.0 to 1.0 (Learned or Declared)
+    PRIMARY KEY (user_id, category_id),
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    FOREIGN KEY (category_id) REFERENCES categories(category_id)
+);
+```
+
+## 7. Business & Promotions (Vouchers)
+```sql
+CREATE TABLE vouchers (
+    voucher_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    location_id BIGINT NOT NULL,
+    code VARCHAR(50) NOT NULL,
+    title VARCHAR(100),
+    description TEXT,
+    discount_value DOUBLE, -- e.g., 20.0 or 50000.0
+    discount_type ENUM('PERCENT', 'FIXED'),
+    quantity_total INT DEFAULT 100,
+    quantity_used INT DEFAULT 0,
+    valid_from TIMESTAMP,
+    valid_to TIMESTAMP,
+    is_active BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (location_id) REFERENCES locations(location_id)
+);
+```
+
+## Data Usage for Algorithms (Scientific Basis)
+
+### 1. Content-Based Filtering (CBF)
+*   **Input**: `locations` (description, price), `location_tags` (features), `user_interest_profiles`.
+*   **Technique**: Construct **Item Vector** from tags/categories. Construct **User Vector** from `user_interest_profiles`. Compute **Cosine Similarity**.
+*   **Training**: No "training" per se, but requires good feature engineering in the DB.
+
+### 2. Collaborative Filtering (CF)
+*   **Input**: `reviews` (Rating Matrix), `user_behavior_logs` (Implicit Matrix).
+*   **Technique**: Matrix Factorization (SVD) or Neural Collaborative Filtering (NCF).
+*   **Training Process**:
+    1.  Extract `user_id`, `location_id`, `rating` from `reviews`.
+    2.  (Advanced) Mix in `behavior_logs` with weights (e.g., View = 1, Favorite = 4, Booking = 5).
+    3.  Train model to predict missing entries in the matrix.
+
+### 3. Context-Aware Recommendation
+*   **Input**: `weather` (Real-time), `user_profile.birth_year` (Demographics), `trip_type` (Context).
+*   **Logic**: Filter CF/CBF results. E.g., If "Raining" -> Filter out `locations` where `tags` Include 'Outdoor'.

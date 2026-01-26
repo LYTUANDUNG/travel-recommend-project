@@ -1,0 +1,64 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary: 13 148 136;
+    /* Teal 600 */
+    --color-secondary: 249 115 22;
+    /* Orange 500 */
+  }
+
+  body {
+    @apply font-sans text-gray-800 bg-slate-50;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-serif;
+  }
+}
+
+.glass {
+  @apply bg-white/70 backdrop-blur-md border border-white/20 shadow-lg;
+}
+
+.leaflet-container {
+  height: 100%;
+  border-radius: 12px;
+  z-index: 0;
+}
+
+/* Fallback/Force Utilities to ensure buttons are visible immediately without restart */
+@layer utilities {
+  .bg-primary-600 {
+    background-color: #0d9488 !important;
+  }
+
+  .hover\:bg-primary-700:hover {
+    background-color: #0f766e !important;
+  }
+
+  .text-primary-600 {
+    color: #0d9488 !important;
+  }
+
+  .focus\:ring-primary-500:focus {
+    --tw-ring-color: #14b8a6 !important;
+  }
+
+  .text-primary-500 {
+    color: #14b8a6 !important;
+  }
+
+  .text-primary-700 {
+    color: #0f766e !important;
+  }
+}
