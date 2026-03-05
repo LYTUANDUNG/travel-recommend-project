@@ -1,0 +1,10 @@
+dependencies {
+    implementation project(':travel-core')
+    
+    // For making HTTP calls to Python AI Server
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+}
+
+tasks.named("jar") {
+    enabled = true
+}

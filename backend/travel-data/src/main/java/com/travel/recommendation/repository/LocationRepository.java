@@ -1,0 +1,12 @@
+package com.travel.recommendation.repository;
+
+import com.travel.recommendation.domain.entity.Location;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public interface LocationRepository extends JpaRepository<Location, Long> {
+    List<Location> findByNameContainingIgnoreCaseOrProvinceContainingIgnoreCase(String name, String province);
+}
