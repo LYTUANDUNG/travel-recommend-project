@@ -1,11 +1,5 @@
 import { create } from 'zustand';
-
-export interface User {
-    id: number;
-    name: string;
-    avatar: string;
-    interests: string[]; // e.g., ['Nature', 'Food']
-}
+import { User } from '../types';
 
 interface AuthState {
     user: User | null;
@@ -26,10 +20,14 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     loginAsUser: () => set({
         user: {
-            id: 1,
-            name: 'Nguyen Van A',
-            avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
-            interests: ['Thiên nhiên', 'Di tích'] // Mock interests
+            user_id: 1,
+            username: 'nguyenvana',
+            email: 'user@example.com',
+            full_name: 'Nguyen Van A',
+            avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
+            role: 'USER',
+            created_at: new Date().toISOString(),
+            interests: ['Thiên nhiên', 'Di tích', 'Ẩm thực'] // Mock interests
         },
         isAuthenticated: true
     }),

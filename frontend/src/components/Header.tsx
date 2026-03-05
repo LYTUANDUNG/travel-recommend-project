@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
-import { MapPin, Menu, X, User, LogOut } from 'lucide-react';
+import { MapPin, Menu, X, User, LogOut, Sun, Moon } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useAuthStore } from '../store/useAuthStore';
+import { useThemeStore } from '../store/useThemeStore';
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const { isAuthenticated, user, loginAsUser, loginAsGuest, logout } = useAuthStore();
+  const { theme, toggleTheme } = useThemeStore();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -29,7 +31,7 @@ export default function Header() {
     <header
       className={cn(
         "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
-        isScrolled ? "bg-white/80 backdrop-blur-md shadow-sm py-3" : "bg-transparent py-5"
+        isScrolled ? "bg-white/80 dark:bg-slate-900/80 backdrop-blur-md shadow-sm py-3" : "bg-transparent py-5"
       )}
     >
       <div className="container mx-auto px-4">
@@ -64,12 +66,20 @@ export default function Header() {
 
           {/* Auth Buttons */}
           <div className="hidden md:flex items-center gap-4">
+            {/* Theme Toggle */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300"
+            >
+              {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+            </button>
+
             {isAuthenticated ? (
               <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-slate-700 hidden lg:block">Hi, {user?.name}</span>
-                <button className="p-2 rounded-full hover:bg-slate-100 transition-colors text-slate-600">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200 hidden lg:block">Hi, {user?.full_name}</span>
+                <Link to="/profile" className="p-2 rounded-full hover:bg-slate-100 transition-colors text-slate-600" title="Hồ sơ cá nhân">
                   <User className="w-5 h-5" />
-                </button>
+                </Link>
                 <button
                   className="p-2 rounded-full hover:bg-slate-100 transition-colors text-slate-600"
                   onClick={logout}

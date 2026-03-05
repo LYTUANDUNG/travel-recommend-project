@@ -15,9 +15,9 @@ export default function LocationList({ title, locations }: LocationListProps) {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {locations.map((loc) => (
                     <LocationCard
-                        key={loc.id}
+                        key={loc.location_id}
                         location={loc}
-                        onClick={() => window.location.href = `/detail/${loc.id}`}
+                        onClick={() => window.location.href = `/detail/${loc.location_id}`}
                     />
                 ))}
             </div>

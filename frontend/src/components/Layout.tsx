@@ -4,7 +4,7 @@ import Footer from './Footer';
 
 export default function Layout() {
     return (
-        <div className="min-h-screen flex flex-col font-sans text-slate-900 bg-slate-50">
+        <div className="min-h-screen flex flex-col font-sans text-slate-900 bg-slate-50 dark:bg-slate-950 dark:text-gray-100 transition-colors duration-300">
             <Header />
             {/* pt-20 to pull content down below fixed header if needed, but for Hero we might want it flush. 
           Let's assume pages handle their own top padding or we use a conditional class. 

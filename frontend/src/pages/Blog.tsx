@@ -32,12 +32,12 @@ export default function Blog() {
     ];
 
     return (
-        <div className="bg-slate-50 min-h-screen pt-20 pb-20">
-            <div className="bg-white border-b border-slate-200">
+        <div className="bg-slate-50 dark:bg-slate-950 min-h-screen pt-20 pb-20">
+            <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
                 <div className="container mx-auto px-4 py-16 text-center">
                     <span className="text-primary-600 font-bold tracking-wider uppercase text-sm mb-2 block">Blog Du Lịch</span>
-                    <h1 className="text-4xl md:text-5xl font-serif font-bold text-slate-900 mb-4">Cảm hứng & Chia sẻ</h1>
-                    <p className="text-slate-600 max-w-2xl mx-auto text-lg">
+                    <h1 className="text-4xl md:text-5xl font-serif font-bold text-slate-900 dark:text-white mb-4">Cảm hứng & Chia sẻ</h1>
+                    <p className="text-slate-600 dark:text-slate-300 max-w-2xl mx-auto text-lg">
                         Những câu chuyện, kinh nghiệm và bí kíp du lịch hữu ích từ cộng đồng đam mê xê dịch.
                     </p>
                 </div>
@@ -46,7 +46,7 @@ export default function Blog() {
             <div className="container mx-auto px-4 py-12">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {blogs.map(blog => (
-                        <article key={blog.id} className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all border border-slate-100 group">
+                        <article key={blog.id} className="bg-white dark:bg-slate-900 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all border border-slate-100 dark:border-slate-800 group">
                             <div className="h-64 overflow-hidden relative">
                                 <img
                                     src={blog.image}
@@ -68,10 +68,10 @@ export default function Blog() {
                                         <span>{blog.author}</span>
                                     </div>
                                 </div>
-                                <h3 className="text-xl font-serif font-bold text-slate-900 mb-3 line-clamp-2 hover:text-primary-600 transition-colors cursor-pointer">
+                                <h3 className="text-xl font-serif font-bold text-slate-900 dark:text-white mb-3 line-clamp-2 hover:text-primary-600 transition-colors cursor-pointer">
                                     {blog.title}
                                 </h3>
-                                <p className="text-slate-600 text-sm mb-4 line-clamp-3 leading-relaxed">
+                                <p className="text-slate-600 dark:text-slate-400 text-sm mb-4 line-clamp-3 leading-relaxed">
                                     {blog.excerpt}
                                 </p>
                                 <button className="flex items-center gap-2 text-primary-600 font-bold text-sm hover:gap-3 transition-all group-hover:text-primary-700">

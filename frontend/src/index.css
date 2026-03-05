@@ -13,7 +13,7 @@
   }
 
   body {
-    @apply font-sans text-gray-800 bg-slate-50;
+    @apply font-sans text-gray-800 bg-slate-50 dark:bg-slate-900 dark:text-gray-100 transition-colors duration-300;
   }
 
   h1,
@@ -26,8 +26,40 @@
   }
 }
 
+/* Glassmorphism & Premium UI Utilities */
 .glass {
-  @apply bg-white/70 backdrop-blur-md border border-white/20 shadow-lg;
+  @apply bg-white/70 backdrop-blur-md border border-white/20 shadow-lg dark:bg-slate-800/80 dark:border-white/10 dark:text-gray-100;
+}
+
+.glass-dark {
+  @apply bg-slate-900/80 backdrop-blur-md border border-white/10 shadow-xl text-white;
+}
+
+.card-hover {
+  @apply transition-all duration-300 hover:scale-[1.02] hover:shadow-xl;
+}
+
+.text-gradient {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-secondary-500;
+}
+
+/* Animations */
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
 }
 
 .leaflet-container {
@@ -60,5 +92,9 @@
 
   .text-primary-700 {
     color: #0f766e !important;
+  }
+
+  .bg-secondary-500 {
+    background-color: #f97316 !important;
   }
 }
