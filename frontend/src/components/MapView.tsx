@@ -1,99 +1,182 @@
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents, Polyline } from 'react-leaflet';
-import type { Location } from '../types';
-import type { OSMNode } from '../api/external';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { useEffect } from 'react';
-
-// ... (keep icons code same)
+import { useEffect, useRef } from 'react';
+import { Location as TravelLocation } from '../types/schema';
+import { OSMNode } from '../api/external';
 
 interface Props {
-  locations: Location[];
+  locations: TravelLocation[];
   pois?: OSMNode[];
   center?: [number, number];
   zoom?: number;
   selectedId?: number;
-  onMapMove?: (center: { lat: number, lng: number }, bounds: any) => void;
-  route?: any; // GeoJSON route object
+  onMapMove?: (center: [number, number], zoom: number) => void;
+  route?: any;
+  showOrder?: boolean;
 }
 
-function MapEvents({ onMapMove }: { onMapMove?: (center: { lat: number, lng: number }, bounds: any) => void }) {
-  const map = useMapEvents({
-    moveend: () => {
-      if (onMapMove) {
-        onMapMove(map.getCenter(), map.getBounds());
-      }
-    },
+// Custom Icon helper
+const createNumberedIcon = (number: number, color: string = '#ec4899') => {
+  return L.divIcon({
+    html: `
+      <div style="
+        background-color: ${color};
+        color: white;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 12px;
+        border: 2px solid white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      ">
+        ${number}
+      </div>
+    `,
+    className: 'custom-div-icon',
+    iconSize: [24, 24],
+    iconAnchor: [12, 12]
   });
-  return null;
-}
+};
 
-function MapController({ center, zoom }: { center?: [number, number], zoom?: number }) {
-  const map = useMapEvents({});
+const isValidCoords = (lat: any, lng: any): boolean => {
+    const latitude = parseFloat(lat);
+    const longitude = parseFloat(lng);
+    return !isNaN(latitude) && !isNaN(longitude) && latitude !== 0 && longitude !== 0;
+};
+
+export default function MapView({ 
+    locations = [], 
+    pois = [], 
+    center, 
+    zoom = 15, 
+    onMapMove, 
+    route, 
+    showOrder = false 
+}: Props) {
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<L.Map | null>(null);
+  const markersRef = useRef<L.LayerGroup | null>(null);
+  const routeRef = useRef<L.Polyline | null>(null);
+
+  // Initialize Map
   useEffect(() => {
-    if (center) {
-      map.flyTo(center, zoom || map.getZoom());
+    if (!mapContainerRef.current || mapInstanceRef.current) return;
+
+    try {
+        const initialCenter = center && isValidCoords(center[0], center[1]) 
+            ? [Number(center[0]), Number(center[1])] 
+            : locations.length > 0 && isValidCoords(locations[0].latitude, locations[0].longitude)
+                ? [Number(locations[0].latitude), Number(locations[0].longitude)]
+                : [16.0667769, 108.2137381];
+
+        const map = L.map(mapContainerRef.current, {
+            center: initialCenter as L.LatLngExpression,
+            zoom: zoom,
+            zoomControl: false,
+            attributionControl: false
+        });
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        map.on('moveend', () => {
+            if (onMapMove) {
+                const c = map.getCenter();
+                onMapMove([c.lat, c.lng], map.getZoom());
+            }
+        });
+
+        markersRef.current = L.layerGroup().addTo(map);
+        mapInstanceRef.current = map;
+
+        // Auto-invalidate size to fix grey map
+        setTimeout(() => map.invalidateSize(), 300);
+
+    } catch (err) {
+        console.error("Leaflet Vanilla Init Error:", err);
     }
-  }, [center, zoom, map]);
-  return null;
-}
 
-export default function MapView({ locations, pois = [], center, zoom = 10, selectedId, onMapMove, route }: Props) {
-  const mapCenter: [number, number] = center ||
-    (locations.length > 0
-      ? [locations[0].latitude, locations[0].longitude]
-      : [10.762622, 106.660172]); // HCM default
+    return () => {
+        if (mapInstanceRef.current) {
+            mapInstanceRef.current.remove();
+            mapInstanceRef.current = null;
+        }
+    };
+  }, []);
 
-  // Convert GeoJSON route coordinate [lng, lat] to Leaflet [lat, lng]
-  const routePositions = route ? route.geometry.coordinates.map((coord: number[]) => [coord[1], coord[0]]) : [];
+  // Update Center/Zoom
+  useEffect(() => {
+    if (!mapInstanceRef.current || !center) return;
+    if (isValidCoords(center[0], center[1])) {
+        mapInstanceRef.current.flyTo([Number(center[0]), Number(center[1])], zoom);
+    }
+  }, [center, zoom]);
+
+  // Update Markers & Route
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const markersGroup = markersRef.current;
+    if (!map || !markersGroup) return;
+
+    // Clear previous
+    markersGroup.clearLayers();
+    if (routeRef.current) {
+        routeRef.current.remove();
+        routeRef.current = null;
+    }
+
+    // Add Location Markers
+    const validLocs = locations.filter(l => isValidCoords(l.latitude, l.longitude));
+    validLocs.forEach((loc, idx) => {
+        const marker = L.marker([Number(loc.latitude), Number(loc.longitude)], {
+            icon: showOrder ? createNumberedIcon(idx + 1) : L.divIcon({ className: 'default-marker', html: '<div style="background:#ec4899;width:12px;height:12px;border-radius:50%;border:2px solid white"></div>'})
+        });
+        marker.bindPopup(`<div class="p-2"><b>${loc.name}</b><p class="text-xs mt-1">${loc.address || ''}</p></div>`);
+        markersGroup.addLayer(marker);
+    });
+
+    // Add Route
+    if (route?.geometry?.coordinates) {
+        const positions = route.geometry.coordinates
+            .filter((c: any) => Array.isArray(c) && c.length >= 2)
+            .map((c: any) => [Number(c[1]), Number(c[0])]);
+        
+        if (positions.length > 0) {
+            routeRef.current = L.polyline(positions, { color: '#ec4899', weight: 6, opacity: 0.8 }).addTo(map);
+        }
+    }
+
+    // Add POIs
+    pois.forEach((poi, idx) => {
+        if (isValidCoords(poi.lat, poi.lon)) {
+            const marker = L.marker([Number(poi.lat), Number(poi.lon)], {
+                icon: createNumberedIcon(idx + 1, '#10b981')
+            });
+            marker.bindPopup(`<div class="p-1 text-xs">${poi.tags?.name || 'POI'}</div>`);
+            markersGroup.addLayer(marker);
+        }
+    });
+
+    // Fit bounds if no explicit center provided but locations exists
+    if (!center && validLocs.length > 0) {
+        const bounds = L.latLngBounds(validLocs.map(l => [Number(l.latitude), Number(l.longitude)]));
+        if (bounds.isValid()) {
+            map.fitBounds(bounds, { padding: [50, 50] });
+        }
+    }
+
+  }, [locations, pois, route]);
 
   return (
-    <div className="h-full w-full rounded-xl overflow-hidden shadow-lg z-0 relative">
-      <MapContainer center={mapCenter} zoom={zoom} style={{ height: '100%', width: '100%' }}>
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>'
-        />
-
-        <MapEvents onMapMove={onMapMove} />
-        <MapController center={center} zoom={zoom} />
-
-        {/* Render Route if available */}
-        {route && routePositions.length > 0 && (
-          <Polyline
-            positions={routePositions}
-            color="blue"
-            weight={5}
-            opacity={0.7}
-          />
-        )}
-
-        {/* Internal Locations (Ours) */}
-        {locations.map((loc) => (
-          <Marker
-            key={loc.location_id}
-            position={[loc.latitude, loc.longitude]}
-            eventHandlers={{
-              click: () => window.location.href = `/detail/${loc.location_id}`
-            }}
-          >
-            <Popup>
-              <div className="text-center min-w-[200px]">
-                <h3 className="font-bold text-lg mb-1">{loc.name}</h3>
-                <img src={loc.thumbnail_url} alt={loc.name} className="w-full h-24 object-cover rounded-md mb-2" />
-                <p className="text-sm text-gray-600 mb-1">{loc.province}</p>
-                <div className="flex justify-center items-center gap-1">
-                  <span className="text-yellow-500">★</span>
-                  <span className="font-bold">{loc.average_rating.toFixed(1)}</span>
-                </div>
-                <a href={`/detail/${loc.location_id}`} className="block mt-2 px-3 py-1 bg-primary-600 text-white rounded-md text-sm hover:bg-primary-700">Xem chi tiết</a>
-              </div>
-            </Popup>
-          </Marker>
-        ))}
-
-        {/* ... (keep POIs code same) */}
-      </MapContainer>
-    </div>
+    <div 
+        ref={mapContainerRef} 
+        className="w-full h-full rounded-[2rem] overflow-hidden bg-slate-100 airy-shadow isolation-isolate"
+        style={{ zIndex: 0 }}
+    />
   );
 }

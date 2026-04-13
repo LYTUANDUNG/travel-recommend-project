@@ -20,6 +20,11 @@ export interface IAuthApi {
     getCurrentUser(): Promise<ApiResponse<User | null>>;
 }
 
+export interface IUserApi {
+    getProfile(id: number): Promise<ApiResponse<User>>;
+    updateProfile(id: number, data: Partial<User>): Promise<ApiResponse<User>>;
+}
+
 // Location API Interface
 export interface ILocationApi {
     getAll(): Promise<ApiResponse<Location[]>>;
@@ -28,6 +33,7 @@ export interface ILocationApi {
     create(location: Partial<Location>): Promise<ApiResponse<Location>>;
     // AI/Recommendation Endpoints
     getRecommendations(userId: number, lat?: number, lng?: number): Promise<ApiResponse<Location[]>>;
+    getPersonalizedRecommendations(lat?: number, lng?: number, hour?: number, weather?: string): Promise<ApiResponse<Location[]>>;
 }
 
 // Review API Interface

@@ -23,11 +23,11 @@ export function useGeoLocation(config: GeoConfig = { enableHighAccuracy: true, t
             });
         };
 
-        const fail = (error: GeolocationPositionError) => {
+        const fail = (err: any) => {
             // Fallback to Ho Chi Minh City if blocked/error
-            console.warn("Geolocation denied/error, falling back to HCM", error);
+            console.warn("Geolocation denied/error, falling back to HCM", err);
             setCoords({ lat: 10.762622, lng: 106.660172 });
-            setError(error.message);
+            setError(err?.message || "Lỗi định vị");
         };
 
         navigator.geolocation.getCurrentPosition(success, fail, config);

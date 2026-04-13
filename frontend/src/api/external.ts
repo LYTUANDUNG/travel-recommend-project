@@ -183,5 +183,36 @@ export const externalApi = {
             }
             return null;
         }
+    },
+
+    getDirectionsSeq: async (coordinates: string): Promise<any> => {
+        const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+        try {
+            const response = await axios.get(
+                `https://api.mapbox.com/directions/v5/mapbox/driving/${coordinates}`,
+                {
+                    params: {
+                        geometries: 'geojson',
+                        access_token: MAPBOX_TOKEN,
+                        overview: 'full'
+                    }
+                }
+            );
+
+            if (response.data && response.data.routes && response.data.routes.length > 0) {
+                return response.data.routes[0];
+            }
+            return null;
+        } catch (error) {
+            console.error("Mapbox Seq failed, fallback to OSRM", error);
+            try {
+                const osrmRes = await axios.get(
+                    `https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=full&geometries=geojson`
+                );
+                return osrmRes.data?.routes?.[0] || null;
+            } catch (err) {
+                return null;
+            }
+        }
     }
 };

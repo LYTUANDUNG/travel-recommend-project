@@ -1,39 +1,40 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { User } from '../types';
+
+import { useTripStore } from './useTripStore';
+import { useLocationStore } from './useLocationStore';
 
 interface AuthState {
     user: User | null;
     isAuthenticated: boolean;
-    loginAsGuest: () => void;
-    loginAsUser: () => void;
+    loginAsUser: (user: User) => void;
     logout: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
-    user: null,
-    isAuthenticated: false,
+export const useAuthStore = create<AuthState>()(
+    persist(
+        (set) => ({
+            user: null,
+            isAuthenticated: false,
 
-    loginAsGuest: () => set({
-        user: null,
-        isAuthenticated: false
-    }),
+            loginAsUser: (userData: User) => set({
+                user: userData,
+                isAuthenticated: true
+            }),
 
-    loginAsUser: () => set({
-        user: {
-            user_id: 1,
-            username: 'nguyenvana',
-            email: 'user@example.com',
-            full_name: 'Nguyen Van A',
-            avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
-            role: 'USER',
-            created_at: new Date().toISOString(),
-            interests: ['Thiên nhiên', 'Di tích', 'Ẩm thực'] // Mock interests
-        },
-        isAuthenticated: true
-    }),
-
-    logout: () => set({
-        user: null,
-        isAuthenticated: false
-    }),
-}));
+            logout: () => {
+                set({
+                    user: null,
+                    isAuthenticated: false
+                });
+                // Clear trip planner and locations on logout for isolation
+                useTripStore.getState().clearTrip();
+                useLocationStore.getState().setSelected(null);
+            },
+        }),
+        {
+            name: 'travel-auth-storage',
+        }
+    )
+);

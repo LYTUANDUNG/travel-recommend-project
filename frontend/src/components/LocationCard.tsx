@@ -1,7 +1,11 @@
-import React from 'react';
-import { Star, MapPin, Heart, Clock, DollarSign } from 'lucide-react';
-import { Location } from '../types';
+import { useState, useEffect } from 'react';
+import { Star, Clock, Sparkles, Heart } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Location } from '../types/schema';
 import { cn } from '../utils/cn';
+import { useAuthStore } from '../store/useAuthStore';
+import { api } from '../api';
+import { humanizeDistance, humanizeMatch } from '../utils/humanize';
 
 interface Props {
   location: Location;
@@ -11,29 +15,68 @@ interface Props {
   onClick?: () => void;
 }
 
-export default function LocationCard({ location, className, onClick }: Props) {
-  // Format Price: e.g. 2 -> "$$"
-  const priceDisplay = '$'.repeat(location.price_level || 1);
+export default function LocationCard({ location, className, onClick, userLat, userLng }: Props) {
+  const { user, isAuthenticated } = useAuthStore();
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
-  // Match Score Ring Color
-  const getScoreColor = (score: number) => {
-    if (score >= 90) return 'text-green-600 border-green-600';
-    if (score >= 70) return 'text-blue-600 border-blue-600';
-    return 'text-orange-500 border-orange-500';
+  const navigate = useNavigate();
+
+  const handleCardClick = () => {
+    // Log behavior (Academic data gathering)
+    if (isAuthenticated && user) {
+        api.client.post('/behavior/log', {
+            userId: user.user_id,
+            locationId: location.location_id,
+            action: 'CLICK'
+        }).catch(() => {});
+    }
+    
+    navigate(`/detail/${location.location_id}`, { state: { matchScore: location.match_score } });
+    if (onClick) onClick();
   };
+
+  // Check initial favorite status
+  useEffect(() => {
+    if (isAuthenticated && user) {
+        api.favorite.getByUser(user.user_id).then(res => {
+            if (res.success) {
+                const isFav = res.data.some((f: any) => f.location.location_id === location.location_id);
+                setIsFavorited(isFav);
+            }
+        });
+    }
+  }, [isAuthenticated, user, location.location_id]);
+
+  const handleToggleFavorite = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Don't trigger card click
+    if (!isAuthenticated || !user) {
+      alert("Vui lòng đăng nhập để lưu địa điểm!");
+      return;
+    }
+
+    const res = await api.favorite.toggle(user.user_id, location.location_id);
+    if (res.success) {
+      setIsFavorited(res.data);
+    }
+  };
+
+  // Format Price: e.g. 2 -> "$$"
+  const pLevel = Math.max(0, Math.min(5, location.price_level || 1));
+  const priceDisplay = '$'.repeat(pLevel);
 
   return (
     <div
-      onClick={onClick}
+      onClick={handleCardClick}
       className={cn(
-        "group relative bg-white dark:bg-slate-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer border border-slate-100 dark:border-slate-700",
+        "group relative bg-white dark:bg-slate-900 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer border border-slate-200 dark:border-slate-800",
         className
       )}
     >
       {/* Image Container */}
       <div className="relative h-48 overflow-hidden">
         <img
-          src={location.thumbnail_url || 'https://images.unsplash.com/photo-1506929562872-bb421503ef21?q=80&w=2568&auto=format&fit=crop'}
+          src={location.thumbnail_url || (location.images && location.images[0]) || 'https://images.unsplash.com/photo-1506929562872-bb421503ef21?q=80&w=2568&auto=format&fit=crop'}
           alt={location.name}
           className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700"
         />
@@ -41,22 +84,35 @@ export default function LocationCard({ location, className, onClick }: Props) {
         {/* Overlay Gradient */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
 
-        {/* Favorite Button (Mock) */}
-        <button className="absolute top-3 right-3 p-2 bg-white/20 backdrop-blur-md rounded-full hover:bg-white text-white hover:text-red-500 transition-colors">
-          <Heart className="w-5 h-5" />
+        {/* Favorite Button */}
+        <button 
+          onClick={handleToggleFavorite}
+          className={cn(
+            "absolute top-3 right-3 p-2 backdrop-blur-md rounded-full transition-all hover:scale-110 z-10",
+            isFavorited 
+              ? "bg-red-500 text-white" 
+              : "bg-white/20 text-white hover:bg-white hover:text-red-500"
+          )}
+        >
+          <Heart className={cn("w-5 h-5", isFavorited && "fill-current")} />
         </button>
 
-        {/* Match Score Badge (AI Feature) */}
-        {location.match_score && (
-          <div className="absolute top-3 left-3 bg-white/95 dark:bg-slate-900/90 backdrop-blur border border-white/50 dark:border-white/20 px-3 py-1.5 rounded-full flex items-center gap-1 shadow-lg">
-            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Gợi ý cho bạn:</span>
-            <span className={cn("text-xs font-black",
-              location.match_score >= 90 ? "text-green-600 dark:text-green-400" : "text-blue-600 dark:text-blue-400"
-            )}>
-              {location.match_score}% phù hợp
-            </span>
-          </div>
-        )}
+        {/* Humanized Match Badge (Tinh tế, không sến) */}
+        {(() => {
+          const match = humanizeMatch(location.match_score);
+          if (match.level === 'high' || match.level === 'medium') {
+            return (
+              <div className={cn(
+                "absolute top-4 left-4 px-3 py-1 rounded-full flex items-center gap-1 shadow-sm z-10",
+                match.level === 'high' ? "bg-primary-600 text-white" : "bg-white text-slate-800"
+              )}>
+                <Sparkles className="w-3 h-3" />
+                <span className="text-[10px] font-bold uppercase tracking-wide">{match.text}</span>
+              </div>
+            );
+          }
+          return null;
+        })()}
 
         {/* Category Tag on Image */}
         <div className="absolute bottom-3 left-3">
@@ -79,44 +135,19 @@ export default function LocationCard({ location, className, onClick }: Props) {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-slate-500 text-sm mb-4">
-          <MapPin className="w-4 h-4 text-slate-400" />
-          <span className="line-clamp-1">{location.address || 'Vietnam'}</span>
+        <div className="flex items-center gap-2 text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-4">
+          <Clock className="w-3.5 h-3.5 text-primary-500" />
+          <span>{humanizeDistance(userLat, userLng, location.latitude, location.longitude)}</span>
         </div>
 
-        {/* Rich Attributes Row */}
-        <div className="flex items-center gap-4 text-xs font-medium text-slate-500 mb-4 border-t border-slate-100 pt-3">
-          <div className="flex items-center gap-1">
-            <DollarSign className="w-3 h-3" />
-            <span className="text-slate-700">{priceDisplay}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Clock className="w-3 h-3" />
-            <span>{location.opening_hour?.slice(0, 5) || '08:00'} - {location.closing_hour?.slice(0, 5) || '22:00'}</span>
-          </div>
-        </div>
-
-        {/* Tags (New Feature) */}
-        {location.tags && location.tags.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-2">
-            {location.tags.slice(0, 3).map(tag => (
-              <span key={tag.name} className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold uppercase rounded-sm">
-                #{tag.name}
-              </span>
-            ))}
-            {location.tags.length > 3 && (
-              <span className="text-[10px] text-slate-400 self-center">+{location.tags.length - 3}</span>
-            )}
-          </div>
+        {/* Time Info (Safe) */}
+        {location.opening_hour && location.closing_hour && (
+            <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 border-t border-slate-100 dark:border-slate-800 pt-3 mt-auto">
+              <div className="flex items-center gap-1 ml-auto">
+                 <span>{String(location.opening_hour).slice(0, 5)} - {String(location.closing_hour).slice(0, 5)}</span>
+              </div>
+            </div>
         )}
-
-        {/* AI Explainability (Reason) */}
-        {/* Accessing a new property 'match_reason' we added in the hook but need to be careful if strict type. 
-            Ideally we should extend the types. For now, assuming it's available or ignored by TS if loose, 
-            but better to stick to Schema. Let's assume standard Location for now. 
-            Wait, I added match_score to schema, but not match_reason.
-            Let's keep it simple for now or use `any` cast if needed, but I'll stick to visual.
-        */}
       </div>
     </div>
   );

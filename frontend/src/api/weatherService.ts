@@ -6,8 +6,7 @@ export interface WeatherData {
     icon: string;
 }
 
-// Mock weather data generator
-// Open-Meteo API integration
+// Real Open-Meteo API integration
 // Docs: https://open-meteo.com/en/docs
 export const getWeatherForLocation = async (lat: number, lng: number): Promise<WeatherData> => {
     try {

@@ -1,191 +1,258 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Map as MapIcon, Grid, MapPin } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, MapPin, SlidersHorizontal, Star } from 'lucide-react';
 import LocationCard from '../components/LocationCard';
-import MapView from '../components/MapView';
 import { useLocationStore } from '../store/useLocationStore';
-import { useSmartRecommendations } from '../hooks/useSmartRecommendations';
-import { externalApi, Province, OSMNode } from '../api/external';
+import { Location } from '../types/schema';
+import { useSearchParams } from 'react-router-dom';
+
+import { api } from '../api';
 
 export default function Explore() {
-    const { locations } = useLocationStore();
-    const recommendations = useSmartRecommendations(locations);
+    const [searchParams] = useSearchParams();
+    
+    // The value actually used for filtering
+    const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+    // The value bound to the input field
+    const [searchInput, setSearchInput] = useState(searchParams.get('q') || '');
+    
+    const [paginatedLocations, setPaginatedLocations] = useState<Location[]>([]);
+    const [totalElements, setTotalElements] = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
+    const [isLoading, setIsLoading] = useState(false);
+
     const [activeCategory, setActiveCategory] = useState('All');
+    const [priceFilter, setPriceFilter] = useState('All');
+    const [ratingFilter, setRatingFilter] = useState<number>(0);
+    const [provinceFilter, setProvinceFilter] = useState('All');
 
-    // New States for Map Integration
-    const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
-    const [provinces, setProvinces] = useState<Province[]>([]);
-    const [selectedProvince, setSelectedProvince] = useState<string>('');
-    const [pois, setPois] = useState<OSMNode[]>([]);
-    const [mapCenter, setMapCenter] = useState<[number, number] | undefined>(undefined);
-    const [isLoadingPOIs, setIsLoadingPOIs] = useState(false);
+    const [categories, setCategories] = useState<string[]>(['All']);
+    const [provinces, setProvinces] = useState<string[]>(['All']);
 
-    const categories = ['All', 'Khách sạn', 'Nhà hàng', 'Di tích', 'Giải trí', 'Thiên nhiên'];
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 16;
 
-    // Load Provinces on Mount
     useEffect(() => {
-        externalApi.getProvinces().then(data => {
-            setProvinces(data);
+        api.category.getAll().then(res => {
+            if (res.success && Array.isArray(res.data)) {
+                setCategories(['All', ...res.data.map((c: any) => c.name)]);
+            }
+        });
+        api.location.getProvinces().then(res => {
+            if (res.success && Array.isArray(res.data)) {
+                setProvinces(['All', ...res.data]);
+            }
         });
     }, []);
 
-    // Handle Province Selection
-    const handleProvinceChange = async (provinceName: string) => {
-        setSelectedProvince(provinceName);
-        if (provinceName) {
-            // Find coordinates for province
-            const coords = await externalApi.searchLocation(provinceName);
-            if (coords) {
-                setMapCenter([coords.lat, coords.lon]);
-                setViewMode('map'); // Auto switch to map
+    useEffect(() => {
+        const fetchLocations = async () => {
+            setIsLoading(true);
+            const params: any = {
+                page: currentPage - 1,
+                size: ITEMS_PER_PAGE
+            };
+            if (searchQuery) params.query = searchQuery;
+            if (activeCategory !== 'All') params.category = activeCategory;
+            if (provinceFilter !== 'All') params.province = provinceFilter;
+            if (priceFilter !== 'All') params.price = priceFilter;
+            if (ratingFilter > 0) params.rating = ratingFilter;
+
+            const res = await api.location.getPaginated(params);
+            if (res.success && res.data && Array.isArray(res.data.content)) {
+                setPaginatedLocations(res.data.content);
+                setTotalPages(res.data.totalPages || 1);
+                setTotalElements(res.data.totalElements || 0);
+            } else {
+                setPaginatedLocations([]);
             }
-        }
-    };
-
-    // Debounce Ref for Map Move
-    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-    // Better approach: Effect that listens to mapCenter changing or ViewMode
-    // We already have handleMapMove. Let's make a dedicated fetcher.
+            setIsLoading(false);
+        };
+        fetchLocations();
+    }, [searchQuery, activeCategory, provinceFilter, priceFilter, ratingFilter, currentPage]);
 
     useEffect(() => {
-        if (viewMode === 'map' && mapCenter) {
-            const [lat, lng] = mapCenter;
-            setIsLoadingPOIs(true);
-            externalApi.getNearbyPOIs(lat, lng, activeCategory)
-                .then(setPois)
-                .finally(() => setIsLoadingPOIs(false));
-        }
-    }, [viewMode, activeCategory, mapCenter]); // When category changes, re-fetch
+        setCurrentPage(1);
+    }, [searchQuery, activeCategory, provinceFilter, priceFilter, ratingFilter]);
 
-    // Update debounce logic to set mapCenter specifically for fetching
-    const onMove = (center: { lat: number, lng: number }) => {
-        if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => {
-            setMapCenter([center.lat, center.lng]); // This triggers the Effect above
-        }, 800);
-    };
+    const priceRanges = ['All', '0đ', 'Dưới 100k', '100k - 500k', 'Trên 500k'];
+    const ratings = [0, 5, 4, 3]; // 0 is All
 
     return (
-        <div className="bg-slate-50 dark:bg-slate-950 min-h-screen pt-20 pb-20">
-            {/* Header Section */}
-            <div className="bg-slate-900 text-white py-16">
-                <div className="container mx-auto px-4 text-center">
-                    <h1 className="text-4xl md:text-5xl font-serif font-bold mb-4">Khám phá Việt Nam</h1>
-                    <p className="text-slate-300 max-w-2xl mx-auto text-lg">
-                        Tìm kiếm những điểm đến hấp dẫn, văn hóa độc đáo và ẩm thực tuyệt vời dọc khắp đất nước.
-                    </p>
-                </div>
+        <div className="bg-slate-50 dark:bg-slate-950 min-h-screen pt-24 pb-20">
+            {/* Header Section Simplified */}
+            <div className="container mx-auto px-4 mb-12">
+                 <div className="bg-white dark:bg-slate-900 rounded-[3rem] shadow-2xl p-10 border border-slate-100 dark:border-slate-800 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-primary-100 dark:bg-primary-900/20 rounded-full -mr-32 -mt-32 blur-3xl opacity-50"></div>
+                    
+                    <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+                        <div>
+                            <h1 className="text-4xl md:text-5xl font-black text-slate-900 dark:text-white mb-4 tracking-tighter leading-tight">
+                                Tìm kiếm <span className="text-primary-600">Trải nghiệm</span> mơ ước của bạn.
+                            </h1>
+                            <p className="text-slate-500 font-medium max-w-md">Sử dụng bộ lọc thông minh để tìm thấy điểm đến lý tưởng dựa trên sở thích và ngân sách.</p>
+                        </div>
+                        
+                        <div className="flex flex-col gap-4">
+                            <div className="relative flex-1">
+                                <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-slate-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Điểm đến, hoạt động..."
+                                    value={searchInput}
+                                    onChange={(e) => setSearchInput(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && setSearchQuery(searchInput)}
+                                    className="w-full pl-16 pr-6 py-5 bg-slate-50 dark:bg-slate-800 rounded-[2rem] outline-none focus:ring-4 focus:ring-primary-500/10 border-2 border-transparent focus:border-primary-500 font-bold text-lg transition-all"
+                                />
+                                <button 
+                                    onClick={() => setSearchQuery(searchInput)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 px-6 py-3 bg-slate-900 dark:bg-primary-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all"
+                                >
+                                    Tìm
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                 </div>
             </div>
 
             {/* Filter Bar */}
-            <div className="container mx-auto px-4 -mt-8 relative z-10">
-                <div className="bg-white dark:bg-slate-900 rounded-xl shadow-lg p-4 flex flex-col xl:flex-row gap-4 items-center justify-between border border-slate-100 dark:border-slate-800">
+            <div className="container mx-auto px-4 mb-12">
+                <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-xl p-8 border border-slate-100 dark:border-slate-800 relative">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+                         {/* Province Filter */}
+                         <div className="space-y-4">
+                             <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
+                                <MapPin className="w-3 h-3 text-primary-500" /> Khu vực (Tỉnh thành)
+                             </p>
+                             <select 
+                                value={provinceFilter}
+                                onChange={(e) => setProvinceFilter(e.target.value)}
+                                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 rounded-2xl font-bold text-slate-700 dark:text-slate-300 outline-none border-2 border-transparent focus:border-primary-500 transition-all appearance-none cursor-pointer"
+                             >
+                                <option value="All">Toàn quốc / Tất cả</option>
+                                {provinces.filter(p => p !== 'All').map(p => <option key={p} value={p}>{p}</option>)}
+                             </select>
+                         </div>
 
-                    {/* Categories */}
-                    <div className="flex overflow-x-auto gap-2 w-full xl:w-auto pb-2 xl:pb-0 scrollbar-hide">
-                        {categories.map(cat => (
-                            <button
-                                key={cat}
-                                onClick={() => setActiveCategory(cat)}
-                                className={`px-4 py-2 rounded-full whitespace-nowrap text-sm font-bold transition-all ${activeCategory === cat
-                                    ? 'bg-primary-600 text-white shadow-md'
-                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-                                    }`}
-                            >
-                                {cat}
-                            </button>
-                        ))}
-                    </div>
+                         {/* Price Filter */}
+                         <div className="space-y-4">
+                            <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
+                                <SlidersHorizontal className="w-3 h-3 text-emerald-500" /> Ngân sách
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                                {['Miễn phí', 'Dưới 100k', '100k - 500k', 'Trên 500k'].map(p => (
+                                    <button 
+                                        key={p} 
+                                        onClick={() => setPriceFilter(priceFilter === p ? 'All' : p)}
+                                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wide transition-all border ${priceFilter === p ? 'border-emerald-500 bg-emerald-50 text-emerald-600 dark:bg-emerald-900/40' : 'border-slate-100 dark:border-slate-800 text-slate-400 hover:border-slate-300'}`}
+                                    >
+                                        {p}
+                                    </button>
+                                ))}
+                            </div>
+                         </div>
 
-                    <div className="flex flex-col md:flex-row gap-4 w-full xl:w-auto items-center">
-                        {/* Province Dropdown */}
-                        <select
-                            value={selectedProvince}
-                            onChange={(e) => handleProvinceChange(e.target.value)}
-                            className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-primary-500 w-full md:w-48"
-                        >
-                            <option value="">Chọn Tỉnh/Thành</option>
-                            {provinces.map(p => (
-                                <option key={p.code} value={p.name}>{p.name}</option>
-                            ))}
-                        </select>
+                         {/* Rating Filter */}
+                         <div className="space-y-4">
+                            <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
+                                <Star className="w-3 h-3 text-amber-500" /> Đánh giá tối thiểu
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                                {[5, 4, 3].map(r => (
+                                    <button 
+                                        key={r} 
+                                        onClick={() => setRatingFilter(ratingFilter === r ? 0 : r)}
+                                        className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wide transition-all border ${ratingFilter === r ? 'border-amber-400 bg-amber-50 text-amber-600 dark:bg-amber-900/40' : 'border-slate-100 dark:border-slate-800 text-slate-400 hover:border-slate-300'}`}
+                                    >
+                                        {r} <Star className="w-2.5 h-2.5 fill-current" />
+                                    </button>
+                                ))}
+                            </div>
+                         </div>
 
-                        {/* Search Input */}
-                        <div className="flex items-center gap-2 w-full md:w-auto bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2">
-                            <Search className="w-5 h-5 text-slate-400" />
-                            <input
-                                type="text"
-                                placeholder="Tìm kiếm địa điểm..."
-                                className="bg-transparent border-none outline-none text-slate-700 dark:text-white w-full md:w-48 placeholder:text-slate-400"
-                            />
-                        </div>
-
-                        {/* View Toggle */}
-                        <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
-                            <button
-                                onClick={() => setViewMode('grid')}
-                                className={`p-2 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 shadow-sm text-primary-600' : 'text-slate-500'}`}
-                            >
-                                <Grid className="w-5 h-5" />
-                            </button>
-                            <button
-                                onClick={() => setViewMode('map')}
-                                className={`p-2 rounded-md transition-all ${viewMode === 'map' ? 'bg-white dark:bg-slate-700 shadow-sm text-primary-600' : 'text-slate-500'}`}
-                            >
-                                <MapIcon className="w-5 h-5" />
-                            </button>
-                        </div>
+                         {/* Categories Chip List */}
+                         <div className="space-y-4 border-l border-slate-100 dark:border-slate-800 pl-8">
+                            <div className="flex justify-between items-center mb-1">
+                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Loại hình</p>
+                                {(activeCategory !== 'All' || provinceFilter !== 'All' || priceFilter !== 'All' || ratingFilter !== 0) && (
+                                    <button 
+                                        onClick={() => {
+                                            setActiveCategory('All');
+                                            setProvinceFilter('All');
+                                            setPriceFilter('All');
+                                            setRatingFilter(0);
+                                        }}
+                                        className="text-[10px] font-black text-rose-500 uppercase hover:underline"
+                                    >
+                                        Xóa lọc
+                                    </button>
+                                )}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {categories.filter(c => c !== 'All').slice(0, 6).map(cat => (
+                                    <button
+                                        key={cat}
+                                        onClick={() => setActiveCategory(activeCategory === cat ? 'All' : cat)}
+                                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${activeCategory === cat ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/30' : 'bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-slate-600'}`}
+                                    >
+                                        {cat}
+                                    </button>
+                                ))}
+                            </div>
+                         </div>
                     </div>
                 </div>
             </div>
 
             {/* Content Area */}
-            <div className="container mx-auto px-4 py-12">
+            <div className="container mx-auto px-4">
+                <div className="mb-8 flex items-center justify-between">
+                    <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">
+                        Hiển thị <span className="text-indigo-600">{totalElements}</span> kết quả
+                    </h2>
+                </div>
 
-                {viewMode === 'map' ? (
-                    <div className="h-[600px] rounded-2xl overflow-hidden shadow-xl border border-slate-200 dark:border-slate-800 relative">
-                        {isLoadingPOIs && (
-                            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[400] bg-white dark:bg-slate-900 px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
-                                <div className="w-4 h-4 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
-                                <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Đang tìm quán ăn...</span>
-                            </div>
-                        )}
-                        <MapView
-                            locations={locations}
-                            pois={pois}
-                            center={mapCenter}
-                            onMapMove={onMove}
-                        />
+                {isLoading ? (
+                    <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
+                        <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300">Đang tải dữ liệu...</h3>
+                    </div>
+                ) : paginatedLocations.length === 0 ? (
+                    <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800">
+                        <SlidersHorizontal className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                        <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300">Không tìm thấy địa điểm phù hợp</h3>
+                        <p className="text-slate-500 mt-2">Hãy thử thay đổi tiêu chí lọc hoặc từ khóa tìm kiếm.</p>
                     </div>
                 ) : (
                     <>
-                        <h2 className="text-2xl font-serif font-bold text-slate-900 dark:text-white mb-8 border-l-4 border-primary-600 pl-4">
-                            {activeCategory === 'All' ? 'Tất cả địa điểm' : activeCategory}
-                        </h2>
-
-                        {/* Suggestions */}
-                        {activeCategory === 'All' && (
-                            <div className="mb-8">
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                    {recommendations.slice(0, 2).map((loc) => (
-                                        <LocationCard key={`explore-rec-${loc.location_id}`} location={loc} onClick={() => window.location.href = `/detail/${loc.location_id}`} className="ring-2 ring-green-100" />
-                                    ))}
-                                </div>
-                                <div className="my-8 border-b border-slate-100" />
-                            </div>
-                        )}
-
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                            {locations.map((loc) => (
-                                <LocationCard key={loc.location_id} location={loc} onClick={() => window.location.href = `/detail/${loc.location_id}`} />
+                            {paginatedLocations.map((loc) => (
+                                <LocationCard key={loc.location_id} location={loc} />
                             ))}
                         </div>
-
-                        <div className="mt-12 text-center">
-                            <button className="px-8 py-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-                                Xem thêm
-                            </button>
-                        </div>
+                        
+                        {/* Pagination Controls */}
+                        {totalPages > 1 && (
+                            <div className="flex justify-center items-center gap-4 mt-12 mb-8">
+                                <button 
+                                    disabled={currentPage === 1}
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    className="w-12 h-12 rounded-2xl flex items-center justify-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 disabled:opacity-30 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm font-black"
+                                >
+                                    &lt;
+                                </button>
+                                <div className="px-6 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm text-sm font-black text-slate-700 dark:text-slate-200">
+                                    {currentPage} <span className="text-slate-400 font-medium mx-1">/</span> {totalPages}
+                                </div>
+                                <button 
+                                    disabled={currentPage === totalPages}
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                    className="w-12 h-12 rounded-2xl flex items-center justify-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 disabled:opacity-30 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm font-black"
+                                >
+                                    &gt;
+                                </button>
+                            </div>
+                        )}
                     </>
                 )}
             </div>

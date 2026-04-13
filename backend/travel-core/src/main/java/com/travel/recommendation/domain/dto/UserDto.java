@@ -17,4 +17,9 @@ public class UserDto {
     private String role;
     private LocalDateTime created_at;
     private List<String> interests;
+    private String phone_number;
+    private String gender;
+    private Integer birth_year;
+    private String nationality;
+    private String token; // Added for JWT
 }

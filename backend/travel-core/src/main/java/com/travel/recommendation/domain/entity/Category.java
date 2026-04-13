@@ -1,5 +1,7 @@
 package com.travel.recommendation.domain.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -10,11 +12,13 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Category {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "category_id")
+    @JsonProperty("category_id")
     private Long id;
 
     @Column(unique = true, nullable = false, length = 50)
@@ -22,4 +26,7 @@ public class Category {
 
     @Column(length = 50)
     private String slug;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
 }

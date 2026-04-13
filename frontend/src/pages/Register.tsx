@@ -88,6 +88,7 @@ export default function Register() {
             const res = await api.auth.register({
                 username: formData.email.split('@')[0],
                 email: formData.email,
+                password: formData.password,
                 full_name: formData.name,
                 birth_year: parseInt(formData.birthYear),
                 province: fullAddress, // Save standardized address
@@ -96,8 +97,8 @@ export default function Register() {
                 created_at: new Date().toISOString()
             });
 
-            if (res.success) {
-                loginAsUser();
+            if (res.success && res.data) {
+                loginAsUser(res.data);
                 navigate('/');
             } else {
                 alert(res.message);

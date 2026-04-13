@@ -1,230 +1,287 @@
-import { useEffect } from 'react';
-import Hero from '../components/Hero';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import LocationCard from '../components/LocationCard';
 import MapView from '../components/MapView';
 import { useLocationStore } from '../store/useLocationStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { useSmartRecommendations } from '../hooks/useSmartRecommendations';
-import { useContextRecommendation } from '../hooks/useContextRecommendation'; // Context Hook
+import { useRecommendations } from '../hooks/useRecommendations';
 import { api } from '../api';
-import { Search, Map, Compass, TrendingUp, CloudRain, Sun, Coffee, User, ArrowRight } from 'lucide-react';
-import { cn } from '../utils/cn';
-import SmartItineraryWidget from '../components/SmartItineraryWidget';
+import { Search, Map, MapPin, Compass, TrendingUp, Sparkles, ArrowRight } from 'lucide-react';
+import OnboardingModal from '../components/OnboardingModal';
 
 export default function Home() {
   const { locations, setLocations, setLoading, loading } = useLocationStore();
   const { isAuthenticated, user } = useAuthStore();
-  const recommendedLocations = useSmartRecommendations(locations);
-
-  // Smart Context Data
-  const { recommendation: contextRec, isLoading: isContextLoading } = useContextRecommendation();
+  const { recommendations, loading: recLoading } = useRecommendations();
+  
+  
+  const navigate = useNavigate();
+  const [banners, setBanners] = useState<any[]>([]);
+  const [currentBanner, setCurrentBanner] = useState(0);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // New States
+  const [newestLocations, setNewestLocations] = useState<any[]>([]);
+  const [blogs, setBlogs] = useState<any[]>([]);
 
   useEffect(() => {
     setLoading(true);
-    // Use new API Layer
-    api.location.getAll()
-      .then(res => setLocations(res.data))
-      .finally(() => setLoading(false));
+    api.location.getPaginated({ page: 0, size: 50 }).then(res => {
+        if (res.success && res.data) {
+            setLocations(res.data.content);
+        }
+    }).finally(() => setLoading(false));
+
+    // Fetch Newest Locations
+    api.location.getPaginated({ page: 0, size: 4, sort: 'locationId,desc' }).then(res => {
+        if (res.success && res.data) {
+            // Dùng data trả về, nếu ko có thì giả lập đảo ngược mảng
+            setNewestLocations(res.data.content.length > 0 ? res.data.content : [...res.data.content].reverse().slice(0, 4));
+        }
+    });
+
+    // Fetch Blogs
+    api.blog.getAll().then(res => {
+        if (res.success && res.data) {
+            const blogData = Array.isArray(res.data) ? res.data : ((res.data as any).content || []);
+            setBlogs(blogData.slice(0, 3));
+        }
+    });
+    
+    // Fetch Active Banners
+    api.client.get('/banners/active').then(res => {
+        if (res.data?.success && res.data.data.length > 0) {
+            setBanners(res.data.data);
+        } else {
+            // Fallback default banners
+            setBanners([
+                { id: 'dev1', title: 'Khám phá thế giới cùng Travel', image_url: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800' },
+                { id: 'dev2', title: 'Ưu đãi đặt vé trải nghiệm bay 50%', image_url: 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05' }
+            ]);
+        }
+    }).catch(() => {
+        setBanners([
+            { id: 'dev1', title: 'Khám phá thế giới cùng Travel', image_url: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800' }
+        ]);
+    });
   }, []);
 
-  const featuredLocations = locations.slice(0, 6); // Keep for "Featured" section
+  // Banner Auto-Slide
+  useEffect(() => {
+    if (banners.length <= 1) return;
+    const timer = setInterval(() => {
+        setCurrentBanner(prev => (prev + 1) % banners.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [banners.length]);
+
+  // Check For New Users (Cold Start AI Fix)
+  useEffect(() => {
+      if (isAuthenticated && user) {
+          const userId = user.user_id;
+          const hasSeen = localStorage.getItem(`onboarded_${userId}`);
+          if (!hasSeen) {
+              api.user.getInterests(userId).then(res => {
+                  if (res.success && res.data.length === 0) {
+                      setShowOnboarding(true);
+                  } else {
+                      localStorage.setItem(`onboarded_${userId}`, 'true');
+                  }
+              });
+          }
+      }
+  }, [isAuthenticated, user]);
+
+  const handleCloseOnboarding = () => {
+      setShowOnboarding(false);
+      if (user) localStorage.setItem(`onboarded_${user.user_id}`, 'true');
+  };
+
+  const featuredLocations = locations.slice(0, 8); 
 
   return (
-    <div className="min-h-screen pb-20 overflow-x-hidden">
-
-      {/* Background Decor */}
-      <div className="fixed top-0 left-0 w-full h-full pointer-events-none z-0 overflow-hidden">
-        <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-primary-200/20 rounded-full blur-[100px] animate-float" />
-        <div className="absolute bottom-[10%] left-[-5%] w-[400px] h-[400px] bg-secondary-200/20 rounded-full blur-[100px] animate-float" style={{ animationDelay: '2s' }} />
-      </div>
-
-      {/* 1. Header Hero (Condensed) */}
-      {!isAuthenticated && <Hero />}
-
-      <div className={cn("container mx-auto px-4 relative z-10 space-y-8", isAuthenticated ? "pt-24" : "-mt-10")}>
-
-        {/* DASHBOARD GRID (Only for Logged In Users) */}
-        {isAuthenticated && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left Column: Context & Itinerary (2/3 width) */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Welcome Header */}
-              <div className="glass p-6 rounded-2xl flex items-center justify-between">
-                <div>
-                  <h1 className="text-2xl font-serif font-bold text-slate-900 dark:text-white">
-                    Chào {user?.full_name || 'Nhà lữ hành'}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-secondary-500">hôm nay đi đâu?</span>
-                  </h1>
-                  <p className="text-slate-500 dark:text-slate-400 mt-1">Hệ thống đã chuẩn bị vài gợi ý hay ho cho bạn.</p>
-                </div>
-                {user?.avatar_url && (
-                  <img src={user.avatar_url} alt="Avatar" className="w-12 h-12 rounded-full border-2 border-white shadow-md" />
-                )}
-              </div>
-
-              {/* Context Banner */}
-              {contextRec && (
-                <div className={cn(
-                  "rounded-2xl shadow-xl p-8 text-white flex items-center justify-between overflow-hidden relative transition-all group",
-                  contextRec.contextType === 'RAIN' ? "bg-gradient-to-br from-slate-800 to-slate-600" :
-                    contextRec.contextType === 'SUN' ? "bg-gradient-to-br from-orange-400 to-pink-500" :
-                      "bg-gradient-to-br from-blue-500 to-indigo-600"
-                )}>
-                  {/* Background Noise/Texture */}
-                  <div className="absolute inset-0 opacity-10 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] mix-blend-overlay"></div>
-
-                  <div className="relative z-10">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-12 h-12 glass rounded-full flex items-center justify-center text-2xl shadow-lg">
-                        {contextRec.icon}
-                      </div>
-                      <h3 className="text-2xl font-serif font-bold">{contextRec.message}</h3>
+    <div className="min-h-screen pb-20 bg-slate-50 dark:bg-slate-950">
+      {/* 1. Cinematic Hero - Standard Clean */}
+      <div className="relative w-full h-[500px] lg:h-[650px] overflow-hidden bg-slate-900">
+        {banners.map((b, idx) => (
+            <div 
+                key={b.id} 
+                className={`absolute inset-0 transition-opacity duration-1000 ${idx === currentBanner ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
+            >
+                <img src={b.image_url || b.imageUrl} alt={b.title} className="w-full h-full object-cover opacity-60" />
+                
+                <div className="absolute inset-0 flex flex-col justify-center items-center text-center px-4 z-20">
+                    <div className="max-w-3xl">
+                        <h1 className="text-4xl md:text-6xl font-bold text-white leading-tight mb-6">
+                          {b.title}
+                        </h1>
+                        <p className="text-white/90 text-lg md:text-xl font-medium mb-10">
+                          Lên kế hoạch dễ dàng, trải nghiệm trọn vẹn tại hàng ngàn điểm đến khắp Việt Nam.
+                        </p>
+                        
+                        <div className="flex bg-white rounded-lg p-2 max-w-2xl mx-auto shadow-lg">
+                            <input 
+                                type="text" 
+                                placeholder="Nhập tên địa điểm bạn muốn đến..." 
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onKeyPress={(e) => e.key === 'Enter' && navigate(`/explore?q=${searchQuery}`)}
+                                className="flex-1 px-4 py-3 text-slate-800 outline-none text-base"
+                            />
+                            <button 
+                                onClick={() => navigate(`/explore?q=${searchQuery}`)}
+                                className="px-8 py-3 bg-primary-600 text-white rounded-md font-bold hover:bg-primary-700 transition-colors flex items-center gap-2"
+                            >
+                                <Search className="w-5 h-5" /> Tìm kiếm
+                            </button>
+                        </div>
                     </div>
-                    <p className="text-white/90 font-medium text-lg max-w-md leading-relaxed">
-                      {contextRec.weatherDescription} ({contextRec.temperature}°C) &bull; {contextRec.subMessage}
-                    </p>
-                    <button className="mt-6 px-6 py-2.5 bg-white text-slate-900 rounded-full font-bold shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center gap-2">
-                      <span>Xem gợi ý chi tiết</span>
-                      <TrendingUp className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  {/* Decorative Icon BG */}
-                  <div className="absolute -right-6 -bottom-6 opacity-20 rotate-12 group-hover:scale-110 group-hover:rotate-6 transition-all duration-700">
-                    {contextRec.contextType === 'RAIN' ? <CloudRain size={220} /> :
-                      contextRec.contextType === 'SUN' ? <Sun size={220} /> : <Compass size={220} />}
-                  </div>
                 </div>
-              )}
-
-              {/* Activity Categories (Glass Cards) */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[
-                  { name: 'Khách sạn', icon: <Map className="w-6 h-6 text-blue-500" />, color: 'bg-blue-50' },
-                  { name: 'Nhà hàng', icon: <Compass className="w-6 h-6 text-emerald-500" />, color: 'bg-emerald-50' },
-                  { name: 'Di tích', icon: <Search className="w-6 h-6 text-amber-500" />, color: 'bg-amber-50' },
-                  { name: 'Giải trí', icon: <TrendingUp className="w-6 h-6 text-purple-500" />, color: 'bg-purple-50' },
-                ].map((cat) => (
-                  <button key={cat.name} className="glass p-4 rounded-xl flex flex-col items-center gap-3 hover:-translate-y-1 transition-transform duration-300 group">
-                    <div className={cn("p-3 rounded-full transition-colors group-hover:bg-white", cat.color)}>{cat.icon}</div>
-                    <span className="font-bold text-slate-700 text-sm group-hover:text-primary-600 transition-colors">{cat.name}</span>
-                  </button>
-                ))}
-              </div>
-
             </div>
-
-            {/* Right Column: Personal Stats & Itinerary (1/3 width) */}
-            <div className="space-y-6">
-              {/* Smart Itinerary */}
-              <SmartItineraryWidget context={contextRec} />
-            </div>
-          </div>
-        )}
-
-        {/* Guest View: Standard Hero Banners */}
-        {!isAuthenticated && contextRec && (
-          // [Previous Guest Banner Logic if needed, or simplified]
-          <div className="glass rounded-xl shadow-xl p-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-            {/* Quick Categories for Guest */}
-            {[
-              { name: 'Khách sạn', icon: <Map className="w-6 h-6 text-blue-500" /> },
-              { name: 'Nhà hàng', icon: <Compass className="w-6 h-6 text-green-500" /> },
-              { name: 'Di tích', icon: <Search className="w-6 h-6 text-orange-500" /> },
-              { name: 'Giải trí', icon: <TrendingUp className="w-6 h-6 text-purple-500" /> },
-            ].map((cat) => (
-              <button key={cat.name} className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors">
-                <div className="p-2 bg-slate-100 rounded-lg">{cat.icon}</div>
-                <span className="font-medium text-slate-700">{cat.name}</span>
-              </button>
-            ))}
-          </div>
-        )}
-
+        ))}
       </div>
 
-      <div className="container mx-auto px-4 py-16 space-y-20 relative z-10">
-
-        {/* Section: Recommended for You (Smart Logic for Both Guest & User) */}
-        <section>
-          <div className="flex items-center gap-4 mb-8">
-            <div className="bg-gradient-to-r from-primary-500 to-primary-600 p-3 rounded-2xl text-white shadow-lg shadow-primary-500/30">
-              <TrendingUp className="w-6 h-6" />
+      <div className="container mx-auto px-4 -mt-8 relative z-30">
+        {/* Categories Bar */}
+        <div className="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-800 flex flex-wrap md:flex-nowrap gap-4 items-center justify-between xl:mx-16 mb-16">
+            <div className="flex gap-4 w-full overflow-x-auto custom-scrollbar md:justify-center">
+                {[
+                  { name: 'Hà Nội', icon: <Map className="w-5 h-5" /> },
+                  { name: 'Đà Nẵng', icon: <Compass className="w-5 h-5" /> },
+                  { name: 'Đà Lạt', icon: <MapPin className="w-5 h-5" /> },
+                  { name: 'Hồ Chí Minh', icon: <Map className="w-5 h-5" /> },
+                ].map(cat => (
+                    <a href={`/explore?q=${cat.name}`} key={cat.name} className="flex flex-col items-center gap-2 min-w-[100px] p-4 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors group border border-transparent hover:border-slate-200">
+                        <div className="bg-slate-100 dark:bg-slate-800 p-3 rounded-full group-hover:bg-primary-50 group-hover:text-primary-600 transition-colors">
+                             {cat.icon}
+                        </div>
+                        <span className="font-bold text-sm tracking-tight">{cat.name}</span>
+                    </a>
+                ))}
             </div>
+        </div>
+
+        {/* Personalized Journey (Guarded for Authenticated Users Only) */}
+        {isAuthenticated && recommendations.length > 0 && (
+            <section className="mb-20">
+               <div className="mb-8 flex justify-between items-end">
+                  <div>
+                      <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">
+                        Gợi ý dành riêng cho {user?.full_name}
+                      </h2>
+                      <p className="text-slate-500 font-medium">Bí mật dựa trên sở thích của bạn do trí tuệ nhân tạo chọn lọc.</p>
+                  </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {recommendations.slice(0,4).map((loc: any) => (
+                      <LocationCard key={`rec-${loc.location_id || loc.id}`} location={loc} />
+                  ))}
+              </div>
+            </section>
+        )}
+
+        {/* Section: Trending / Popular */}
+        <section className="mb-20 bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100 dark:border-slate-800">
             <div>
-              <h2 className="text-3xl font-serif font-bold text-slate-900">
-                {isAuthenticated ? 'Gợi ý dành riêng cho bạn' : 'Xu hướng hiện nay'}
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-white tracking-tight flex items-center gap-2">
+                 <TrendingUp className="w-6 h-6 text-rose-500" /> Điểm đến nổi bật nhất
               </h2>
-              <p className="text-slate-600 font-medium">
-                {isAuthenticated
-                  ? "Được cá nhân hóa bởi AI dựa trên sở thích và thời tiết"
-                  : 'Những địa điểm được cộng đồng yêu thích nhất'}
-              </p>
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {recommendedLocations.map((loc) => (
-              <LocationCard
-                key={`rec-${loc.location_id}`}
-                location={loc}
-                userLat={10.762622}
-                userLng={106.660172}
-                onClick={() => window.location.href = `/detail/${loc.location_id}`}
-                className="ring-2 ring-primary-50 hover:ring-4 hover:ring-primary-100"
-              />
-            ))}
-          </div>
-        </section>
-
-        {/* Section 1: Top Destinations */}
-        <section>
-          <div className="flex items-end justify-between mb-8">
-            <div>
-              <h2 className="text-3xl font-serif font-bold text-slate-900 mb-2">Địa điểm nổi bật</h2>
-              <p className="text-slate-600 font-medium">Top những nơi nhất định phải đến</p>
-            </div>
-            <a href="/explore" className="text-primary-600 font-bold hover:text-primary-700 hover:underline flex items-center gap-1">
+            <a href="/explore" className="text-primary-600 font-bold hover:underline py-2 text-sm flex items-center gap-1">
               Xem tất cả <ArrowRight className="w-4 h-4" />
             </a>
           </div>
 
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="h-96 bg-slate-200 rounded-2xl animate-pulse" />
-              ))}
-            </div>
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+               {[1, 2, 3, 4].map(i => (
+                 <div key={i} className="h-72 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse" />
+               ))}
+             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {featuredLocations.map((loc) => (
-                <LocationCard
-                  key={loc.location_id}
-                  location={loc}
-                  userLat={10.762622}
-                  userLng={106.660172}
-                  onClick={() => window.location.href = `/detail/${loc.location_id}`}
-                />
-              ))}
-            </div>
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+               {featuredLocations.map((loc) => (
+                 <LocationCard key={loc.location_id} location={loc} />
+               ))}
+             </div>
           )}
         </section>
 
-        {/* Section 2: Map Discovery */}
-        <section className="glass rounded-3xl p-6 relative overflow-hidden">
-          <div className="mb-6 relative z-10">
-            <h2 className="text-2xl font-serif font-bold text-slate-900 mb-2">Khám phá qua bản đồ</h2>
-            <p className="text-slate-500">Tìm kiếm địa điểm thú vị xung quanh bạn</p>
+        {/* Section: New Arrivals */}
+        <section className="mb-20">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-white tracking-tight flex items-center gap-2">
+                 <Sparkles className="w-6 h-6 text-amber-500" /> Vừa mới đăng tải
+              </h2>
+              <p className="text-slate-500 font-medium text-sm mt-1">Những địa điểm mới nhất vừa được bổ sung vào hệ thống.</p>
+            </div>
           </div>
-          <div className="h-[500px] rounded-2xl overflow-hidden shadow-inner border border-slate-200">
-            <MapView locations={locations} />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+             {newestLocations.length > 0 ? newestLocations.map((loc) => (
+                 <LocationCard key={`new-${loc.location_id}`} location={loc} />
+             )) : featuredLocations.slice(0, 4).reverse().map((loc) => (
+                 <LocationCard key={`new-fb-${loc.location_id}`} location={loc} />
+             ))}
           </div>
         </section>
 
+        {/* Section: Travel Blogs & News */}
+        <section className="mb-24 mt-16 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 lg:p-12 rounded-3xl">
+          <div className="flex items-center justify-between mb-10">
+            <div>
+              <h2 className="text-3xl font-bold text-slate-800 dark:text-white mb-2">
+                 Cẩm nang Du lịch & Tin tức
+              </h2>
+              <p className="text-slate-500 font-medium">Cập nhật xu hướng, mẹo vặt và những câu chuyện truyền cảm hứng.</p>
+            </div>
+            <a href="/blog" className="hidden md:flex text-slate-700 bg-slate-100 px-6 py-3 rounded-full font-bold hover:bg-slate-200 transition-colors text-sm items-center gap-2">
+              Đọc thêm <ArrowRight className="w-4 h-4" />
+            </a>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+             {blogs.length > 0 ? blogs.map((blog) => (
+                 <div key={blog.post_id} className="group cursor-pointer">
+                    <div className="aspect-[4/3] rounded-2xl overflow-hidden mb-4 border border-slate-100">
+                        <img src={blog.thumbnail_url || 'https://images.unsplash.com/photo-1504280654490-255d28bba1e9'} alt={blog.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    </div>
+                    <div className="flex gap-2 text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">
+                        <span>{new Date(blog.created_at).toLocaleDateString('vi-VN')}</span>
+                        <span>•</span>
+                        <span className="text-primary-600">{blog.category_name || 'BÀI VIẾT'}</span>
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white group-hover:text-primary-600 transition-colors line-clamp-2 mb-2 leading-tight">
+                        {blog.title}
+                    </h3>
+                    <p className="text-sm text-slate-500 line-clamp-2">
+                        {blog.content_summary || 'Hãy khám phá chi tiết bài viết này để có những bí kíp tuyệt vời nhất cho chuyến đi của bạn.'}
+                    </p>
+                 </div>
+             )) : (
+                [1,2,3].map(i => (
+                 <div key={i} className="group flex flex-col">
+                    <div className="aspect-[4/3] rounded-2xl bg-slate-200 animate-pulse mb-4" />
+                    <div className="w-1/3 h-4 bg-slate-200 rounded" />
+                    <div className="w-3/4 h-6 bg-slate-200 mt-2 mb-2 rounded" />
+                    <div className="w-full h-4 bg-slate-200 rounded" />
+                 </div>
+                ))
+             )}
+          </div>
+          <div className="mt-8 text-center md:hidden">
+              <a href="/blog" className="inline-flex text-primary-600 font-bold hover:underline gap-1 items-center">
+                  Xem tất cả cẩm nang <ArrowRight className="w-4 h-4" />
+              </a>
+          </div>
+        </section>
       </div>
+
+      {showOnboarding && user && (
+          <OnboardingModal user={user} onClose={handleCloseOnboarding} />
+      )}
     </div>
   );
 }
-
-// Add ArrowRight import if missing (It was used in my code but needed import)
-// Actually I need to check imports.
-// Step 5: Check imports carefully.

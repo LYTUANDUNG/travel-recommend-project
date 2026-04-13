@@ -6,9 +6,15 @@ dependencies {
     implementation project(':travel-core')
     implementation project(':travel-data')
     implementation project(':travel-service')
-    implementation project(':travel-ai-client')
     
+    // JWT API for parsing in Controllers
+    implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
     // Main web entry point
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
+    
+    // Dotenv for loading .env files
+    implementation 'io.github.cdimascio:dotenv-java:3.0.0'
 }

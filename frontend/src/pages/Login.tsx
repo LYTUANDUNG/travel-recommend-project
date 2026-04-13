@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, Loader2, Facebook } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { api } from '../api';
+import { useAuthStore } from '../store/useAuthStore';
 
 export default function Login() {
     const navigate = useNavigate();
@@ -11,14 +13,34 @@ export default function Login() {
         password: ''
     });
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        // Mock login delay
-        setTimeout(() => {
+        try {
+            const res = await api.auth.login(formData.email, formData.password);
+            if (res.success && res.data) {
+                const token = (res.data as any).token;
+                const user = (res.data as any).user || res.data;
+                
+                if (token) {
+                    localStorage.setItem('token', token);
+                }
+                
+                useAuthStore.getState().loginAsUser(user);
+                if (user.role === 'ADMIN') {
+                    navigate('/admin/dashboard');
+                } else {
+                    navigate('/');
+                }
+            } else {
+                alert(res.message || 'Login failed');
+            }
+        } catch (error) {
+            console.error('Login error', error);
+            alert('Lỗi kết nối tới máy chủ');
+        } finally {
             setLoading(false);
-            // navigate('/'); // In real app, redirect after context update
-        }, 1500);
+        }
     };
 
     return (

@@ -1,5 +1,6 @@
 import { BehaviorLog, ActionType } from '../types/schema';
 import { v4 as uuidv4 } from 'uuid';
+import { api } from './index';
 
 /**
  * Logging Service
@@ -45,16 +46,10 @@ export const loggingService = {
         console.log("Payload:", log);
         console.groupEnd();
 
-        // 2. Persist to LocalStorage (Mock Database)
-        try {
-            const existingLogs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-            existingLogs.push(log);
-            // Limit to last 100 logs to prevent overflow
-            if (existingLogs.length > 100) existingLogs.shift();
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(existingLogs));
-        } catch (e) {
-            console.error("Failed to save log", e);
-        }
+        // 2. Persist to Backend via API (Non-blocking)
+        api.behavior.logAction(log).catch(e => {
+            console.error("Failed to push log to server", e);
+        });
     },
 
     // Methods for specific actions
