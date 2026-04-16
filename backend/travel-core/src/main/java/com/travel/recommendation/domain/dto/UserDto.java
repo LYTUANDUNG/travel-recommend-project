@@ -21,5 +21,6 @@ public class UserDto {
     private String gender;
     private Integer birth_year;
     private String nationality;
+    private Boolean is_active;
     private String token; // Added for JWT
 }

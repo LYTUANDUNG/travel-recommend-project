@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
 import { User } from '../types/schema';
-import { Trash2, Edit, Loader2, Shield, User as UserIcon, Mail, Calendar, Search } from 'lucide-react';
+import { Trash2, Shield, User as UserIcon, Mail, Calendar, Search, Lock, ShieldCheck, Loader2 } from 'lucide-react';
+import { cn } from '../utils/cn';
 import { format } from 'date-fns';
 
 export default function AdminUsers() {
@@ -32,6 +33,28 @@ export default function AdminUsers() {
             fetchUsers();
         } else {
             alert("Lỗi khi xóa: " + res.message);
+        }
+    };
+
+    const handleStatusToggle = async (user: User) => {
+        const newStatus = !user.is_active;
+        const res = await api.user.updateStatus(user.user_id, newStatus);
+        if (res.success) {
+            fetchUsers();
+        } else {
+            alert("Lỗi: " + res.message);
+        }
+    };
+
+    const handleRoleToggle = async (user: User) => {
+        const newRole = user.role === 'ADMIN' ? 'USER' : 'ADMIN';
+        if (!confirm(`Bạn có muốn chuyển ${user.full_name} thành ${newRole}?`)) return;
+        
+        const res = await api.user.updateRole(user.user_id, newRole);
+        if (res.success) {
+            fetchUsers();
+        } else {
+            alert("Lỗi: " + res.message);
         }
     };
 
@@ -119,13 +142,30 @@ export default function AdminUsers() {
                                     </td>
                                     <td className="px-8 py-5 text-right">
                                         <div className="flex justify-end gap-1">
-                                            <button className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 rounded-xl transition-all" title="Sửa">
-                                                <Edit className="w-5 h-5" />
+                                            <button 
+                                                onClick={() => handleRoleToggle(u)}
+                                                className={cn(
+                                                    "p-2 rounded-xl transition-all",
+                                                    u.role === 'ADMIN' ? "text-indigo-600 bg-indigo-50" : "text-slate-400 hover:text-indigo-600 hover:bg-slate-50"
+                                                )}
+                                                title="Đổi quyền hạn"
+                                            >
+                                                <Shield className="w-5 h-5" />
+                                            </button>
+                                            <button 
+                                                onClick={() => handleStatusToggle(u)}
+                                                className={cn(
+                                                    "p-2 rounded-xl transition-all",
+                                                    u.is_active ? "text-slate-400 hover:text-orange-600 hover:bg-orange-50" : "text-rose-600 bg-rose-50"
+                                                )}
+                                                title={u.is_active ? "Khóa tài khoản" : "Mở khóa tài khoản"}
+                                            >
+                                                <Lock className="w-5 h-5" />
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(u.user_id)}
                                                 className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-xl transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                                                title="Xóa"
+                                                title="Xóa vĩnh viễn"
                                                 disabled={u.role === 'ADMIN'}
                                             >
                                                 <Trash2 className="w-5 h-5" />

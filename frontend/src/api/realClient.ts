@@ -11,6 +11,17 @@ export const apiClient = axios.create({
     }
 });
 
+export const realAdminApi = {
+    getStats: async (): Promise<ApiResponse<any>> => {
+        try {
+            const response = await apiClient.get('/admin/dashboard/stats');
+            return response.data;
+        } catch (error: any) {
+            return { success: false, data: null, message: 'Failed to fetch stats' };
+        }
+    }
+};
+
 apiClient.interceptors.request.use((config) => {
     const token = localStorage.getItem('token');
     if (token && config.headers) {
@@ -70,6 +81,22 @@ export const realAuthApi: IAuthApi = {
     },
     getCurrentUser: async () => {
         return { success: false, data: {} as User, message: 'Not implemented without JWT' };
+    },
+    forgotPassword: async (email: string): Promise<ApiResponse<void>> => {
+        try {
+            const response = await apiClient.post('/auth/forgot-password', { email });
+            return response.data;
+        } catch (error: any) {
+            return { success: false, data: undefined as any, message: error.response?.data?.message || 'Failed' };
+        }
+    },
+    resetPassword: async (token: string, newPassword: string): Promise<ApiResponse<void>> => {
+        try {
+            const response = await apiClient.post('/auth/reset-password', { token, new_password: newPassword });
+            return response.data;
+        } catch (error: any) {
+            return { success: false, data: undefined as any, message: error.response?.data?.message || 'Failed' };
+        }
     }
 };
 
@@ -136,6 +163,30 @@ export const realUserApi = {
             return response.data;
         } catch (error: any) {
             return { success: false, data: null, message: 'Failed' };
+        }
+    },
+    updateRole: async (id: number, role: string): Promise<ApiResponse<User>> => {
+        try {
+            const response = await apiClient.patch(`/users/${id}/role`, { role });
+            return response.data;
+        } catch (error: any) {
+            return { success: false, data: {} as User, message: error.response?.data?.message || 'Failed' };
+        }
+    },
+    updateStatus: async (id: number, isActive: boolean): Promise<ApiResponse<User>> => {
+        try {
+            const response = await apiClient.patch(`/users/${id}/active`, { is_active: isActive });
+            return response.data;
+        } catch (error: any) {
+            return { success: false, data: {} as User, message: error.response?.data?.message || 'Failed' };
+        }
+    },
+    changePassword: async (oldPassword: string, newPassword: string): Promise<ApiResponse<void>> => {
+        try {
+            const response = await apiClient.put('/users/change-password', { old_password: oldPassword, new_password: newPassword });
+            return response.data;
+        } catch (error: any) {
+            return { success: false, data: undefined as any, message: error.response?.data?.message || 'Failed' };
         }
     }
 };
@@ -209,7 +260,7 @@ export const realLocationApi = {
     },
     getPersonalizedRecommendations: async (lat?: number, lng?: number, hour?: number, weather?: string): Promise<ApiResponse<Location[]>> => {
         try {
-            let url = `/locations/recommendations/context`;
+            let url = `/locations/recommendations/smart`;
             const params = [];
             if (lat !== undefined) params.push(`lat=${lat}`);
             if (lng !== undefined) params.push(`lng=${lng}`);
@@ -409,6 +460,14 @@ export const realCategoryApi = {
             return response.data;
         } catch (error: any) {
             return { success: false, data: [], message: 'Failed to fetch categories' };
+        }
+    },
+    getActive: async (): Promise<ApiResponse<any[]>> => {
+        try {
+            const response = await apiClient.get('/categories/active');
+            return response.data;
+        } catch (error: any) {
+            return { success: false, data: [], message: 'Failed to fetch active categories' };
         }
     },
     create: async (category: any): Promise<ApiResponse<any>> => {

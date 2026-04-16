@@ -110,9 +110,9 @@ export default function Login() {
                         </div>
 
                         <div className="text-sm">
-                            <a href="#" className="font-medium text-primary-600 hover:text-primary-500">
+                            <Link to="/forgot-password" data-id="forgot-password-link" className="font-medium text-primary-600 hover:text-primary-500">
                                 Quên mật khẩu?
-                            </a>
+                            </Link>
                         </div>
                     </div>
 
@@ -123,32 +123,6 @@ export default function Login() {
                     >
                         {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Đăng nhập'}
                     </button>
-
-                    <div className="relative">
-                        <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-slate-200" />
-                        </div>
-                        <div className="relative flex justify-center text-sm">
-                            <span className="px-2 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400">Hoặc tiếp tục với</span>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                        <button
-                            type="button"
-                            className="w-full inline-flex justify-center py-2.5 px-4 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm bg-white dark:bg-slate-800 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
-                        >
-                            <span className="sr-only">Sign in with Google</span>
-                            <svg className="w-5 h-5" viewBox="0 0 24 24"><path d="M12.545 10.239v3.821h5.445c-0.712 2.315-2.647 3.972-5.445 3.972-3.332 0-6.033-2.53-6.033-5.652s2.7-5.652 6.033-5.652c1.498 0 2.866 0.549 3.921 1.453l2.814-2.814c-1.79-1.677-4.184-2.7-6.735-2.7-5.522 0-10 4.478-10 10s4.478 10 10 10c4.672 0 9.148-3.232 9.148-9.148 0-0.655-0.091-1.258-0.208-1.821h-9.208z" fill="currentColor" /></svg>
-                        </button>
-                        <button
-                            type="button"
-                            className="w-full inline-flex justify-center py-2.5 px-4 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm bg-white dark:bg-slate-800 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
-                        >
-                            <span className="sr-only">Sign in with Facebook</span>
-                            <Facebook className="w-5 h-5 text-blue-600" />
-                        </button>
-                    </div>
                 </form>
 
                 <p className="text-center text-sm text-slate-600 dark:text-slate-400">

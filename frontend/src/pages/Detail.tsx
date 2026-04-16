@@ -69,12 +69,18 @@ export default function Detail() {
                 }
               }).catch(err => console.error("Visit check error", err));
             }
+          } else {
+            setSelectedLocation(null);
           }
         })
         .catch(err => {
             console.error("Detail load error", err);
+            setSelectedLocation(null);
         })
         .finally(() => setLoading(false));
+    } else {
+      setLoading(false);
+      setSelectedLocation(null);
     }
   }, [id, user]);
 

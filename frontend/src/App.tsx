@@ -4,6 +4,8 @@ import Detail from './pages/Detail';
 import Recommend from './pages/Recommend';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Profile from './pages/Profile';
 import Explore from './pages/Explore';
 import Blog from './pages/Blog';
@@ -88,6 +90,8 @@ export default function App() {
         {/* Naked Pages */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
       </Routes>
     </BrowserRouter>
   );

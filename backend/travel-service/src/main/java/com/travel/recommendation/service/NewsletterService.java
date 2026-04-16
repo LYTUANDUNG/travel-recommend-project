@@ -2,7 +2,7 @@ package com.travel.recommendation.service;
 
 import com.travel.recommendation.domain.entity.Blog;
 import com.travel.recommendation.domain.entity.NewsletterSubscriber;
-import com.travel.recommendation.repository.NewsletterSubscriberRepository;
+import com.travel.recommendation.adapter.out.persistence.NewsletterSubscriberRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;

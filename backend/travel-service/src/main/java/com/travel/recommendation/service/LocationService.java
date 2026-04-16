@@ -7,10 +7,10 @@ import com.travel.recommendation.domain.dto.LocationResponse;
 import com.travel.recommendation.domain.entity.Category;
 import com.travel.recommendation.domain.entity.Location;
 import com.travel.recommendation.domain.entity.Tag;
-import com.travel.recommendation.repository.CategoryRepository;
-import com.travel.recommendation.repository.LocationRepository;
-import com.travel.recommendation.repository.LocationTagRepository;
-import com.travel.recommendation.repository.TagRepository;
+import com.travel.recommendation.adapter.out.persistence.CategoryRepository;
+import com.travel.recommendation.adapter.out.persistence.LocationRepository;
+import com.travel.recommendation.adapter.out.persistence.LocationTagRepository;
+import com.travel.recommendation.adapter.out.persistence.TagRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
@@ -28,7 +28,8 @@ public class LocationService {
     private final TagRepository tagRepository;
     private final LocationTagRepository locationTagRepository;
     private final CategoryRepository categoryRepository;
-    private final com.travel.recommendation.repository.ReviewRepository reviewRepository;
+    private final com.travel.recommendation.adapter.out.persistence.ReviewRepository reviewRepository;
+    private final VisitTimeInsightService visitTimeInsightService;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -185,6 +186,7 @@ public class LocationService {
     }
 
     public LocationResponse mapToResponse(Location loc) {
+        VisitTimeInsightService.VisitTimeInsight insight = visitTimeInsightService.computeBestTime(loc);
         return LocationResponse.builder()
                 .locationId(loc.getId())
                 .name(loc.getName())
@@ -212,6 +214,8 @@ public class LocationService {
                                 .weight(lt.getTag().getWeight())
                                 .build())
                         .collect(Collectors.toList()) : List.of())
+                .bestTimeToVisit(insight.bestTimeToVisit())
+                .bestTimeReason(insight.bestTimeReason())
                 .build();
     }
 

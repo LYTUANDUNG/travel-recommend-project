@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
 import { Review } from '../types/schema';
-import { Trash2, Loader2, Star, MessageSquare, MapPin, Calendar, Search, Filter } from 'lucide-react';
+import { Trash2, Loader2, Star, MessageSquare, MapPin, Calendar, Search, Filter, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { format } from 'date-fns';
+import { cn } from '../utils/cn';
 
 export default function AdminReviews() {
     const [reviews, setReviews] = useState<any[]>([]);
@@ -11,9 +12,8 @@ export default function AdminReviews() {
 
     const fetchReviews = async () => {
         setLoading(true);
-        // Assuming api.review.getAll() exists or we use a custom endpoint
         try {
-            const res = await api.client.get('/admin/reviews');
+            const res = await api.client.get('/reviews');
             if (res.data.success) {
                 setReviews(res.data.data || []);
             }
@@ -30,12 +30,25 @@ export default function AdminReviews() {
     const handleDelete = async (id: number) => {
         if (!window.confirm("Bạn có chắc chắn muốn xóa Bình luận này?")) return;
         try {
-            const res = await api.client.delete(`/admin/reviews/${id}`);
+            const res = await api.client.delete(`/reviews/${id}`);
             if (res.data.success) {
                 fetchReviews();
             }
         } catch (err) {
             alert("Lỗi khi xóa bình luận");
+        }
+    };
+
+    const handleUpdateStatus = async (id: number, status: string) => {
+        try {
+            const res = await api.client.put(`/reviews/${id}/status`, { status });
+            if (res.data.success) {
+                fetchReviews();
+            } else {
+                alert("Lỗi: " + res.data.message);
+            }
+        } catch (err) {
+            alert("Lỗi khi cập nhật trạng thái");
         }
     };
 
@@ -66,11 +79,6 @@ export default function AdminReviews() {
                             className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm focus:ring-2 focus:ring-primary-500 transition-all outline-none shadow-sm"
                         />
                     </div>
-                    <div className="flex items-center gap-2">
-                        <button className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black uppercase tracking-widest text-slate-500 hover:text-primary-600 transition-colors">
-                            <Filter className="w-3 h-3" /> Lọc xếp hạng
-                        </button>
-                    </div>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -79,7 +87,7 @@ export default function AdminReviews() {
                             <tr className="text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800 uppercase tracking-widest text-[10px] font-black">
                                 <th className="px-8 py-5">Người dùng / Địa điểm</th>
                                 <th className="px-8 py-5">Nội dung bình luận</th>
-                                <th className="px-8 py-5">Đánh giá</th>
+                                <th className="px-8 py-5">Đánh giá / Trạng thái</th>
                                 <th className="px-8 py-5">Thời gian</th>
                                 <th className="px-8 py-5 text-right">Thao tác</th>
                             </tr>
@@ -108,15 +116,26 @@ export default function AdminReviews() {
                                     <td className="px-8 py-5 max-w-md">
                                         <div className="flex gap-2">
                                             <MessageSquare className="w-4 h-4 text-slate-300 shrink-0 mt-0.5" />
-                                            <p className="text-slate-600 dark:text-slate-400 leading-relaxed italic line-clamp-2">"{r.content}"</p>
+                                            <p className="text-slate-600 dark:text-slate-400 leading-relaxed italic line-clamp-2">"{r.comment || r.content}"</p>
                                         </div>
                                     </td>
                                     <td className="px-8 py-5">
-                                        <div className="flex items-center gap-1 text-amber-500">
-                                            {[...Array(5)].map((_, i) => (
-                                                <Star key={i} className={`w-3.5 h-3.5 ${i < r.rating ? 'fill-current' : 'text-slate-200 dark:text-slate-700'}`} />
-                                            ))}
-                                            <span className="ml-2 font-black text-slate-900 dark:text-white">{r.rating}</span>
+                                        <div className="space-y-2">
+                                            <div className="flex items-center gap-1 text-amber-500">
+                                                {[...Array(5)].map((_, i) => (
+                                                    <Star key={i} className={`w-3.5 h-3.5 ${i < r.rating ? 'fill-current' : 'text-slate-200 dark:text-slate-700'}`} />
+                                                ))}
+                                                <span className="ml-2 font-black text-slate-900 dark:text-white">{r.rating}</span>
+                                            </div>
+                                            <div>
+                                                {r.verify_status === 'APPROVED' ? (
+                                                    <span className="text-[10px] font-black uppercase text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">Đã duyệt</span>
+                                                ) : r.verify_status === 'HIDDEN' ? (
+                                                    <span className="text-[10px] font-black uppercase text-rose-600 bg-rose-50 px-2 py-0.5 rounded">Đã ẩn</span>
+                                                ) : (
+                                                    <span className="text-[10px] font-black uppercase text-slate-500 bg-slate-50 px-2 py-0.5 rounded">Chờ duyệt</span>
+                                                )}
+                                            </div>
                                         </div>
                                     </td>
                                     <td className="px-8 py-5 whitespace-nowrap">
@@ -126,13 +145,35 @@ export default function AdminReviews() {
                                         </div>
                                     </td>
                                     <td className="px-8 py-5 text-right">
-                                        <button
-                                            onClick={() => handleDelete(r.review_id)}
-                                            className="p-3 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-2xl transition-all"
-                                            title="Xóa bình luận"
-                                        >
-                                            <Trash2 className="w-5 h-5" />
-                                        </button>
+                                        <div className="flex justify-end gap-1">
+                                            <button
+                                                onClick={() => handleUpdateStatus(r.review_id, 'APPROVED')}
+                                                className={cn(
+                                                    "p-2 rounded-xl transition-all",
+                                                    r.verify_status === 'APPROVED' ? "text-emerald-600 bg-emerald-50" : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                                                )}
+                                                title="Duyệt bình luận"
+                                            >
+                                                <CheckCircle className="w-5 h-5" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleUpdateStatus(r.review_id, 'HIDDEN')}
+                                                className={cn(
+                                                    "p-2 rounded-xl transition-all",
+                                                    r.verify_status === 'HIDDEN' ? "text-rose-600 bg-rose-50" : "text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                                                )}
+                                                title="Ẩn bình luận"
+                                            >
+                                                {r.verify_status === 'HIDDEN' ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(r.review_id)}
+                                                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                                                title="Xóa vĩnh viễn"
+                                            >
+                                                <Trash2 className="w-5 h-5" />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}

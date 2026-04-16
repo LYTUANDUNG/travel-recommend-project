@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: travel_mysql
+    env_file:
+      - ./backend/.env
+    environment:
+      MYSQL_DATABASE: travel_recommendation
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./backend/db_init.sql:/docker-entrypoint-initdb.d/db_init.sql
+    command: --innodb-ft-min-token-size=1 --innodb-ft-enable-stopword=OFF
+    restart: always
+
+  redis:
+    image: redis:6.2-alpine
+    container_name: travel_redis
+    ports:
+      - "6379:6379"
+    restart: always
+
+networks:
+  default:
+    name: travel_network

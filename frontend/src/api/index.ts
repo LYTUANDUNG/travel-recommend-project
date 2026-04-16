@@ -1,4 +1,19 @@
-import { realAuthApi, realUserApi, realLocationApi, realReviewApi, realVisitApi, realUploadApi, realBehaviorApi, realTagApi, realCategoryApi, realFavoriteApi, realBlogApi, realNewsletterApi, apiClient } from './realClient';
+import { 
+    realAuthApi, 
+    realUserApi, 
+    realLocationApi, 
+    realReviewApi, 
+    realVisitApi, 
+    realUploadApi, 
+    realBehaviorApi, 
+    realTagApi, 
+    realCategoryApi, 
+    realFavoriteApi, 
+    realBlogApi, 
+    realNewsletterApi,
+    realAdminApi,
+    apiClient 
+} from './realClient';
 
 export const api = {
     auth: realAuthApi,
@@ -13,5 +28,6 @@ export const api = {
     favorite: realFavoriteApi,
     blog: realBlogApi,
     newsletter: realNewsletterApi,
+    admin: realAdminApi,
     client: apiClient
 };

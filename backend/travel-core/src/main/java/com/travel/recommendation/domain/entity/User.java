@@ -52,12 +52,22 @@ public class User extends BaseEntity {
     @JsonProperty("birth_year")
     private Integer birthYear;
 
+    @Column(length = 100)
+    @JsonProperty("city")
+    private String city;
+
+    @Column(columnDefinition = "TEXT")
+    @JsonProperty("interests")
+    private String interests;
+
     @Column(length = 50)
     @JsonProperty("nationality")
-    private String nationality;
+    @Builder.Default
+    private String nationality = "Việt Nam";
 
     @Enumerated(EnumType.STRING)
-    private Role role;
+    @Builder.Default
+    private Role role = Role.USER;
 
     @Column(name = "is_active")
     @Builder.Default

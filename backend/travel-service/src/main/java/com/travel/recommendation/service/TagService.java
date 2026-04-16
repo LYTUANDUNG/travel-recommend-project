@@ -1,7 +1,7 @@
 package com.travel.recommendation.service;
 
 import com.travel.recommendation.domain.entity.Tag;
-import com.travel.recommendation.repository.TagRepository;
+import com.travel.recommendation.adapter.out.persistence.TagRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

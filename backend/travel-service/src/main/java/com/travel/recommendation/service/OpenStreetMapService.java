@@ -80,20 +80,34 @@ public class OpenStreetMapService {
                 String address = tags.has("addr:street") ? tags.get("addr:street").asText() : "";
                 if (tags.has("addr:housenumber")) address = tags.get("addr:housenumber").asText() + " " + address;
                 
+                // Structured Address Extraction
+                String ward = tags.has("addr:suburb") ? tags.get("addr:suburb").asText() : 
+                              tags.has("suburb") ? tags.get("suburb").asText() : "";
+                String district = tags.has("addr:district") ? tags.get("addr:district").asText() : 
+                                 tags.has("district") ? tags.get("district").asText() : "";
+                String province = tags.has("addr:city") ? tags.get("addr:city").asText() : 
+                                 tags.has("addr:province") ? tags.get("addr:province").asText() : "Việt Nam";
+                
                 String categoryName = "Khám phá";
                 String thumbnailUrl = "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&q=80";
+                Integer priceLevel = 1; // Default
+                String priceRangeStr = "Dưới 100k";
                 
                 if (tags.has("amenity")) {
                     String amenity = tags.get("amenity").asText();
                     if (amenity.matches("restaurant|food_court|cafe|bar")) {
                         categoryName = "Ăn uống";
                         thumbnailUrl = "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&q=80";
+                        priceLevel = 2; // Restaurants usually higher
+                        priceRangeStr = "100k - 500k";
                     } else if (amenity.equals("place_of_worship")) {
                         categoryName = "Văn hóa - Tâm linh";
                         thumbnailUrl = "https://images.unsplash.com/photo-1542640244-7e672d62024b?auto=format&fit=crop&q=80";
                     } else if (amenity.matches("theatre|cinema")) {
                         categoryName = "Giải trí";
                         thumbnailUrl = "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&q=80";
+                        priceLevel = 3;
+                        priceRangeStr = "200k - 1tr";
                     } else if (amenity.equals("marketplace")) {
                         categoryName = "Mua sắm";
                         thumbnailUrl = "https://images.unsplash.com/photo-1533900298318-6b8da08a523e?auto=format&fit=crop&q=80";
@@ -129,13 +143,16 @@ public class OpenStreetMapService {
                         .latitude(eLat)
                         .longitude(eLng)
                         .address(address)
+                        .ward(ward)
+                        .district(district)
+                        .province(province)
                         .description(desc)
-                        .province(tags.has("addr:city") ? tags.get("addr:city").asText() : "Việt Nam")
                         .categoryName(categoryName)
                         .thumbnailUrl(thumbnailUrl)
                         .openingHour(java.time.LocalTime.of(8, 0))
                         .closingHour(java.time.LocalTime.of(22, 0))
-                        .priceRangeStr("Dưới 100k")
+                        .priceLevel(priceLevel)
+                        .priceRangeStr(priceRangeStr)
                         .build();
                 
                 locations.add(loc);

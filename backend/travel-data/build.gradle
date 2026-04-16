@@ -1,9 +1,5 @@
 dependencies {
     implementation project(':travel-core')
-    
-    // Spring Data JPA & MySQL
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-    runtimeOnly 'com.mysql:mysql-connector-j'
 }
 
 tasks.named("jar") {

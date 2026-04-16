@@ -130,29 +130,40 @@ export default function AdminAddLocation() {
         setSearchingPhotos(true);
         try {
             // Priority 1: Wikipedia Search (100% Matched for landmarks)
-            const wikiRes = await fetch(`https://vi.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=pageimages&titles=${encodeURIComponent(query)}&pithumbsize=1000`);
-            const wikiData = await wikiRes.json();
-            const pages = wikiData.query?.pages;
+            // Try different variants: Original, "Vườn quốc gia X", "Chùa X", etc.
+            const searchTries = [query, `Vườn quốc gia ${query}`, `Chùa ${query}`, `Thác ${query}`];
             let wikiUrl = "";
-            if (pages) {
-                const pageId = Object.keys(pages)[0];
-                if (pageId !== "-1" && pages[pageId].thumbnail) {
-                    wikiUrl = pages[pageId].thumbnail.source;
+            
+            for (const t of searchTries) {
+                const wikiRes = await fetch(`https://vi.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=pageimages&titles=${encodeURIComponent(t)}&pithumbsize=1000`);
+                const wikiData = await wikiRes.json();
+                const pages = wikiData.query?.pages;
+                if (pages) {
+                    const pageId = Object.keys(pages)[0];
+                    if (pageId !== "-1" && pages[pageId].thumbnail) {
+                        wikiUrl = pages[pageId].thumbnail.source;
+                        break;
+                    }
                 }
             }
 
-            // Priority 2: Unsplash Public Search
-            const unsplashRes = await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&client_id=8U8pZ_Y-R6pW_4u9v-2wR_7z1_i_2_8_0_0_0_0_0_0_&per_page=12`);
-            // Note: client_id is mock/public demo for thesis
+            // Priority 2: Unsplash Public Search (With Error handling)
             let unsplashUrls: string[] = [];
             try {
-                const unsplashData = await unsplashRes.json();
-                unsplashUrls = unsplashData.results?.map((r: any) => r.urls.regular) || [];
+                const unsplashRes = await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&client_id=8U8pZ_Y-R6pW_4u9v-2wR_7z1_i_2_8_0_0_0_0_0_0_&per_page=12`);
+                if (unsplashRes.ok) {
+                    const unsplashData = await unsplashRes.json();
+                    unsplashUrls = unsplashData.results?.map((r: any) => r.urls.regular) || [];
+                }
             } catch (e) {
-                // Fallback to picsum if rate limit
+                // Background fallback
+            }
+
+            // Fallback: If nothing found, use Picsum
+            if (!wikiUrl && unsplashUrls.length === 0) {
                 unsplashUrls = [
-                    `https://picsum.photos/seed/${query}/800/600`,
-                    `https://picsum.photos/seed/${query}2/800/600`
+                    `https://picsum.photos/seed/${encodeURIComponent(query)}/1200/800`,
+                    `https://picsum.photos/seed/${encodeURIComponent(query)}-2/1200/800`
                 ];
             }
 
@@ -160,7 +171,8 @@ export default function AdminAddLocation() {
             setPhotoResults(combined);
         } catch (e) {
             console.error(e);
-            alert("Lỗi khi tìm ảnh");
+            alert("Lỗi khi tìm ảnh. Sử dụng nguồn dự phòng.");
+            setPhotoResults([`https://picsum.photos/seed/${encodeURIComponent(query)}/1200/800`]);
         } finally {
             setSearchingPhotos(false);
         }

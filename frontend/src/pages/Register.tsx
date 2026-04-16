@@ -71,6 +71,37 @@ export default function Register() {
 
     const handleNext = (e?: React.FormEvent) => {
         if (e) e.preventDefault();
+        
+        // Step 1 Validation
+        if (step === 1) {
+            if (!formData.name || formData.name.length < 2) {
+                alert("Vui lòng nhập họ tên đầy đủ (tối thiểu 2 ký tự)");
+                return;
+            }
+            if (!formData.email || !formData.email.includes('@')) {
+                alert("Vui lòng nhập email hợp lệ");
+                return;
+            }
+            if (!formData.password || formData.password.length < 6) {
+                alert("Mật khẩu phải từ 6 ký tự trở lên");
+                return;
+            }
+        }
+        
+        // Step 2 Validation handled by button 'disabled' state, but adding a check just in case
+        if (step === 2) {
+            const currentYear = new Date().getFullYear();
+            const year = parseInt(formData.birthYear);
+            if (isNaN(year) || year < 1900 || year > currentYear) {
+                alert("Năm sinh không hợp lệ");
+                return;
+            }
+            if (!selectedWard) {
+                alert("Vui lòng chọn Tỉnh/Thành và Phường/Xã");
+                return;
+            }
+        }
+
         setStep(p => p + 1);
     };
 

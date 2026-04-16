@@ -23,9 +23,9 @@ export default function AdminDashboard() {
     });
 
     useEffect(() => {
-        api.client.get('/admin/dashboard/stats').then(res => {
-            if (res.data.success) {
-                setStatsData(res.data.data);
+        api.admin.getStats().then(res => {
+            if (res.success) {
+                setStatsData(res.data);
             }
         }).catch(err => console.error("Lỗi lấy thống kê", err));
     }, []);

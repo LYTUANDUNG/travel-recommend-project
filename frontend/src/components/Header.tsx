@@ -115,7 +115,7 @@ export default function Header() {
                   Đăng nhập
                 </Link>
                 <Link to="/register" className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-primary-500/20">
-                  Khám phá ngay
+                  Đăng ký
                 </Link>
               </>
             )}

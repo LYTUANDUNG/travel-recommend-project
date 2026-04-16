@@ -8,7 +8,13 @@ import lombok.*;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "reviews")
+@Table(
+        name = "reviews",
+        indexes = {
+                @Index(name = "idx_reviews_location", columnList = "location_id"),
+                @Index(name = "idx_reviews_created_at", columnList = "created_at")
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -56,10 +62,12 @@ public class Review extends BaseEntity {
     private VerifyStatus verifyStatus = VerifyStatus.PENDING;
 
     @Column(name = "visit_date")
-    private LocalDate visitDate;
+    @Builder.Default
+    private LocalDate visitDate = LocalDate.now();
 
     @Column(name = "trip_type", length = 50)
-    private String tripType;
+    @Builder.Default
+    private String tripType = "Tham quan";
 
     @Column(name = "is_edited")
     @Builder.Default

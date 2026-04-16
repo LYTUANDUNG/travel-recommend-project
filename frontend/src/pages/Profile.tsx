@@ -11,7 +11,7 @@ import { QRCodeSVG } from 'qrcode.react';
 export default function Profile() {
     const { user, loginAsUser, logout } = useAuthStore();
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState<'info' | 'history' | 'favorites'>('info');
+    const [activeTab, setActiveTab] = useState<'info' | 'history' | 'favorites' | 'security'>('info');
     const [favorites, setFavorites] = useState<Favorite[]>([]);
     const [visits, setVisits] = useState<VisitRequest[]>([]);
     const [loadingData, setLoadingData] = useState(false);
@@ -26,6 +26,13 @@ export default function Profile() {
         phone_number: user?.phone_number || '',
         birth_year: user?.birth_year || '',
         gender: (user?.gender || '') as any
+    });
+
+    // Password State
+    const [passwordData, setPasswordData] = useState({
+        old_password: '',
+        new_password: '',
+        confirm_password: ''
     });
 
     React.useEffect(() => {
@@ -115,6 +122,29 @@ export default function Profile() {
         }
     };
 
+    const handlePasswordChange = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (passwordData.new_password !== passwordData.confirm_password) {
+            alert("Mật khẩu mới và xác nhận mật khẩu không khớp!");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const res = await api.user.changePassword(passwordData.old_password, passwordData.new_password);
+            if (res.success) {
+                alert("Đổi mật khẩu thành công!");
+                setPasswordData({ old_password: '', new_password: '', confirm_password: '' });
+            } else {
+                alert(res.message || "Lỗi khi đổi mật khẩu");
+            }
+        } catch (err) {
+            alert("Lỗi kết nối máy chủ");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="min-h-screen pt-24 pb-12">
             <div className="container mx-auto px-4 max-w-5xl">
@@ -159,6 +189,7 @@ export default function Profile() {
                                 { id: 'info', label: 'Thông tin cá nhân', icon: <User className="w-4 h-4" /> },
                                 { id: 'history', label: 'Lịch sử đặt chỗ', icon: <History className="w-4 h-4" /> },
                                 { id: 'favorites', label: 'Yêu thích', icon: <Heart className="w-4 h-4" /> },
+                                { id: 'security', label: 'Đổi mật khẩu', icon: <Lock className="w-4 h-4" /> },
                             ].map((item) => (
                                 <button
                                     key={item.id}
@@ -397,29 +428,83 @@ export default function Profile() {
                                         </div>
                                     ) : (
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            {favorites.map(f => (
-                                                <div 
-                                                    key={f.id} 
-                                                    onClick={() => navigate(`/detail/${f.location.location_id}`)}
-                                                    className="group bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700 overflow-hidden cursor-pointer hover:shadow-lg transition-all"
-                                                >
-                                                    <div className="h-32 overflow-hidden">
-                                                        <img 
-                                                            src={f.location.thumbnail_url} 
-                                                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
-                                                        />
-                                                    </div>
-                                                    <div className="p-4">
-                                                        <h4 className="font-bold text-slate-900 dark:text-white truncate">{f.location.name}</h4>
-                                                        <div className="flex items-center gap-1 mt-1">
-                                                            <RatingStars rating={f.location.average_rating} size={12} />
-                                                            <span className="text-[10px] text-slate-500">({f.location.total_reviews})</span>
+                                            {favorites.map(f => {
+                                                const loc = (f as any).location;
+                                                const id = loc?.location_id || loc?.locationId || (f as any).locationId;
+                                                return (
+                                                    <div 
+                                                        key={f.id} 
+                                                        onClick={() => navigate(`/detail/${id}`)}
+                                                        className="group bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700 overflow-hidden cursor-pointer hover:shadow-lg transition-all"
+                                                    >
+                                                        <div className="h-32 overflow-hidden">
+                                                            <img 
+                                                                src={loc?.thumbnail_url || loc?.thumbnailUrl} 
+                                                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                                                            />
+                                                        </div>
+                                                        <div className="p-4">
+                                                            <h4 className="font-bold text-slate-900 dark:text-white truncate">{loc?.name}</h4>
+                                                            <div className="flex items-center gap-1 mt-1">
+                                                                <RatingStars rating={loc?.average_rating || loc?.averageRating || 0} size={12} />
+                                                                <span className="text-[10px] text-slate-500">({loc?.total_reviews || loc?.totalReviews || 0})</span>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     )}
+                                </div>
+                            )}
+                            {activeTab === 'security' && (
+                                <div className="space-y-6 animate-fade-in">
+                                    <h3 className="text-xl font-bold flex items-center gap-2 text-slate-900 dark:text-white mb-6">
+                                        <Lock className="w-5 h-5 text-primary-600" />
+                                        Thay đổi mật khẩu
+                                    </h3>
+                                    <form onSubmit={handlePasswordChange} className="max-w-md space-y-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Mật khẩu hiện tại</label>
+                                            <input 
+                                                type="password" 
+                                                required
+                                                className="w-full p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700" 
+                                                value={passwordData.old_password}
+                                                onChange={e => setPasswordData({...passwordData, old_password: e.target.value})}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Mật khẩu mới</label>
+                                            <input 
+                                                type="password" 
+                                                required
+                                                minLength={6}
+                                                className="w-full p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700" 
+                                                value={passwordData.new_password}
+                                                onChange={e => setPasswordData({...passwordData, new_password: e.target.value})}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Xác nhận mật khẩu mới</label>
+                                            <input 
+                                                type="password" 
+                                                required
+                                                className="w-full p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700" 
+                                                value={passwordData.confirm_password}
+                                                onChange={e => setPasswordData({...passwordData, confirm_password: e.target.value})}
+                                            />
+                                        </div>
+                                        <div className="pt-2">
+                                            <button 
+                                                type="submit" 
+                                                disabled={loading}
+                                                className="px-6 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition flex items-center gap-2"
+                                            >
+                                                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Cập nhật mật khẩu"}
+                                            </button>
+                                        </div>
+                                    </form>
                                 </div>
                             )}
                         </div>

@@ -10,6 +10,10 @@
     --color-secondary: 226 149 120; /* Soft Coral */
     --color-accent: 245 230 211; /* Warm Sand */
     --color-bg-light: 255 254 250; /* Pearl White */
+    
+    --primary: 217 90% 61%;
+    --primary-foreground: 0 0% 100%;
+    --accent-vibrant: 262 83% 58%;
   }
 
   body {
@@ -41,6 +45,19 @@
 
 .card-hover {
   @apply transition-all duration-700 ease-out hover:translate-y-[-12px] hover:shadow-[0_45px_100px_-20px_rgba(37,99,235,0.25)] dark:hover:shadow-[0_45px_100px_-20px_rgba(255,255,255,0.05)];
+}
+
+/* Premium Design System Utilities */
+.premium-card {
+  @apply bg-white/80 backdrop-blur-3xl border border-slate-100 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.03)] transition-all duration-500 hover:shadow-[0_30px_60px_rgba(0,0,0,0.06)] dark:bg-slate-900/60 dark:border-slate-800;
+}
+
+.btn-premium {
+  @apply relative overflow-hidden bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold text-sm uppercase tracking-widest transition-all hover:bg-slate-800 active:scale-95 shadow-2xl shadow-slate-900/20 dark:bg-white dark:text-slate-950;
+}
+
+.glass-morphism {
+  @apply bg-white/10 backdrop-blur-2xl border border-white/20 shadow-2xl;
 }
 
 .bg-gradient-mesh {

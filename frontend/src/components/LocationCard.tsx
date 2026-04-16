@@ -41,7 +41,10 @@ export default function LocationCard({ location, className, onClick, userLat, us
     if (isAuthenticated && user) {
         api.favorite.getByUser(user.user_id).then(res => {
             if (res.success) {
-                const isFav = res.data.some((f: any) => f.location.location_id === location.location_id);
+                const isFav = res.data.some((f: any) => {
+                    const locId = f.location?.location_id || f.location?.locationId || f.locationId;
+                    return locId === (location.location_id || (location as any).locationId);
+                });
                 setIsFavorited(isFav);
             }
         });

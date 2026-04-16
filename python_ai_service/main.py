@@ -5,11 +5,12 @@ import platform
 platform.machine = lambda: 'AMD64'
 from sqlalchemy import create_engine
 import os
+import json
 from dotenv import load_dotenv
 
 load_dotenv()
-from models.content_based import recommend_content_based, precompute_content_based
-from models.collaborative import recommend_collaborative, precompute_collaborative
+from models.content_based.content_based import recommend_content_based, precompute_content_based
+from models.collaborative.collaborative import recommend_collaborative, precompute_collaborative
 from models.osm_integration import recommend_by_context_and_osm
 from scripts.enrich_images import enrich_fast
 import threading
@@ -97,41 +98,79 @@ def background_enrich():
     return {"success": True, "message": "Enrichment started in background"}
 
 @app.get("/recommend/context")
-def get_context_recommendation(lat: float = 0, lng: float = 0, hour: int = 12, weather: str = "Clear", top_n: int = 10):
+def get_context_recommendation(lat: float = None, lng: float = None, hour: int = 12, weather: str = "Clear", top_n: int = 10):
     """Gợi ý dựa trên ngữ cảnh (Thời gian, Thời tiết, Vị trí)"""
-    if df_locations is None:
-        return {"success": False, "message": "Models not loaded"}
-    
-    recs = recommend_by_context_and_osm(df_locations, lat, lng, hour, weather, top_n)
-    
-    # Map back to full location objects
-    result_locations = []
-    for r in recs:
-        loc = df_locations[df_locations['location_id'] == r['placeId']].iloc[0].to_dict()
-        loc['match_score'] = int(r['score'] * 100)
-        result_locations.append(loc)
+    try:
+        if lat is None or lng is None:
+            return {"success": True, "data": [], "message": "Fallback"}
+
+        if df_locations is None or df_locations.empty:
+            return {"success": True, "data": [], "message": "Fallback"}
         
-    return {"success": True, "data": result_locations}
+        recs = recommend_by_context_and_osm(df_locations, lat, lng, hour, weather, top_n)
+        
+        # Map back to full location objects
+        result_locations = []
+        for r in recs:
+            matches = df_locations[df_locations['location_id'] == r['placeId']]
+            if not matches.empty:
+                loc = matches.iloc[0].to_dict()
+                loc['match_score'] = int(r['score'] * 100)
+                result_locations.append(loc)
+            
+        return {"success": True, "data": result_locations, "message": "OK"}
+    except Exception as e:
+        import traceback
+        print(f"[ERROR] /recommend/context crash: {e}")
+        traceback.print_exc()
+        return {"success": True, "data": [], "message": f"Fallback due to error: {str(e)}"}
 
 @app.get("/recommend/collaborative")
-def get_collaborative_recommendation(user_id: int = 0, top_n: int = 10):
-    if df_reviews is None:
-        return []
-        
-    recommendations = recommend_collaborative(df_reviews, user_item_matrix, item_corr, pop_fallback, user_id, top_n)
-    return {"success": True, "data": recommendations, "message": "OK"}
+def get_collaborative_recommendation(user_id: int = None, top_n: int = 10):
+    try:
+        if user_id is None:
+            return {"success": True, "data": [], "message": "Fallback"}
+
+        if df_reviews is None or df_reviews.empty:
+            return {"success": True, "data": [], "message": "Fallback"}
+            
+        recommendations = recommend_collaborative(df_reviews, user_item_matrix, item_corr, pop_fallback, user_id, top_n)
+        return {"success": True, "data": recommendations, "message": "OK"}
+    except Exception as e:
+        import traceback
+        print(f"[ERROR] /recommend/collaborative crash: {e}")
+        traceback.print_exc()
+        return {"success": True, "data": [], "message": f"Fallback: {str(e)}"}
 
 @app.get("/recommend/content")
-def get_content_based_recommendation(location_id: int, top_n: int = 5):
-    if df_locations is None or df_locations.empty:
-        return {"success": False, "data": [], "message": "Data not loaded"}
-    
-    if location_id not in df_locations['location_id'].values:
-        return {"success": False, "data": [], "message": f"Location {location_id} not in cache. Try /reload"}
+def get_content_based_recommendation(location_id: int = None, top_n: int = 5):
+    try:
+        if location_id is None:
+            return {"success": True, "data": [], "message": "Fallback"}
+
+        if df_locations is None or df_locations.empty:
+            return {"success": True, "data": [], "message": "Fallback"}
         
-    recommendations = recommend_content_based(df_locations, cosine_sim, location_id, top_n)
-    return {"success": True, "data": recommendations, "message": "OK"}
+        if location_id not in df_locations['location_id'].values:
+            return {"success": True, "data": [], "message": "Fallback"}
+            
+        recommendations = recommend_content_based(df_locations, cosine_sim, location_id, top_n)
+        return {"success": True, "data": recommendations, "message": "OK"}
+    except Exception as e:
+        print(f"[ERROR] /recommend/content crash: {e}")
+        return {"success": True, "data": [], "message": "Fallback"}
+
+@app.get("/recommend/metrics")
+def get_ai_metrics():
+    """Lấy kết quả đánh giá thực nghiệm (RMSE, MAE, Precision)"""
+    metrics_path = "evaluation_results/metrics.json"
+    if not os.path.exists(metrics_path):
+        return {"success": False, "message": "Metrics not generated. Run evaluation first."}
+    
+    with open(metrics_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    return {"success": True, "data": data}
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(app, host="0.0.0.0", port=8000)

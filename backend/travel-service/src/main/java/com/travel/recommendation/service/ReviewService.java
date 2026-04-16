@@ -5,7 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.travel.recommendation.domain.dto.ReviewDto;
 import com.travel.recommendation.domain.entity.Review;
-import com.travel.recommendation.repository.ReviewRepository;
+import com.travel.recommendation.adapter.out.persistence.ReviewRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,8 +17,8 @@ import java.util.List;
 public class ReviewService {
 
     private final ReviewRepository reviewRepository;
-    private final com.travel.recommendation.repository.UserRepository userRepository;
-    private final com.travel.recommendation.repository.LocationRepository locationRepository;
+    private final com.travel.recommendation.adapter.out.persistence.UserRepository userRepository;
+    private final com.travel.recommendation.adapter.out.persistence.LocationRepository locationRepository;
     private final VisitRequestService visitRequestService;
     private final LocationService locationService;
     private final ObjectMapper objectMapper;
@@ -40,8 +40,11 @@ public class ReviewService {
 
     @Transactional
     public ReviewDto saveReview(ReviewDto reviewDto) {
+        log.info("Starting saveReview for user {} at location {}", reviewDto.getUserId(), reviewDto.getLocationId());
+        
         // Enforce 1 review per location
         if (reviewRepository.existsByUser_IdAndLocation_Id(reviewDto.getUserId(), reviewDto.getLocationId())) {
+            log.warn("User {} already reviewed location {}", reviewDto.getUserId(), reviewDto.getLocationId());
             throw new RuntimeException("Bạn đã đánh giá địa điểm này rồi. Mỗi người dùng chỉ được đánh giá 1 lần.");
         }
 
@@ -53,17 +56,17 @@ public class ReviewService {
         // Verification check: User must have an APPROVED visit request for this location
         boolean canReview = visitRequestService.canUserReview(user.getId(), location.getId());
         if (!canReview) {
+            log.warn("User {} is not eligible to review location {}. No approved visit found.", user.getId(), location.getId());
             List<com.travel.recommendation.domain.dto.VisitRequestDto> requests = visitRequestService.getUserRequests(user.getId());
             String existingStatus = requests.stream()
                 .filter(r -> r.getLocationId().equals(location.getId()))
                 .map(r -> r.getStatus())
                 .collect(java.util.stream.Collectors.joining(", "));
             
-            throw new RuntimeException("User must have an APPROVED visit request before reviewing. (User ID: " + user.getId() 
-                + ", Location ID: " + location.getId() 
-                + ", Detected Statuses for this location: [" + existingStatus + "])");
+            throw new RuntimeException("Hệ thống chỉ cho phép đánh giá sau khi bạn đã có yêu cầu tham quan được DUYỆT hoặc HOÀN THÀNH. Trạng thái hiện tại: [" + existingStatus + "]");
         }
 
+        log.info("Creating review entity for user {} and location {}", user.getFullName(), location.getName());
         Review review = Review.builder()
                 .user(user)
                 .location(location)
@@ -76,9 +79,15 @@ public class ReviewService {
                 .isEdited(false)
                 .build();
 
-        Review savedReview = reviewRepository.save(review);
-        locationService.syncStats(savedReview.getLocation().getId());
-        return mapToDto(savedReview);
+        try {
+            Review savedReview = reviewRepository.save(review);
+            locationService.syncStats(savedReview.getLocation().getId());
+            log.info("Successfully saved review (ID: {}) and synced stats.", savedReview.getId());
+            return mapToDto(savedReview);
+        } catch (Exception e) {
+            log.error("Database error while saving review: {}", e.getMessage(), e);
+            throw e;
+        }
     }
 
     @Transactional
@@ -86,10 +95,9 @@ public class ReviewService {
         Review review = reviewRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Review not found"));
         
-        if (Boolean.TRUE.equals(review.getIsEdited())) {
-            throw new RuntimeException("Bạn chỉ được chỉnh sửa đánh giá 1 lần duy nhất.");
-        }
-
+        // Removed the strict one-edit restriction as requested by user
+        // We now just mark it as edited.
+        
         review.setRating(dto.getRating());
         review.setComment(dto.getComment());
         review.setImagesJson(toJson(dto.getImages()));

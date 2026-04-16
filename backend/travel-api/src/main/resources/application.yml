@@ -2,13 +2,13 @@ spring:
   application:
     name: recommendation
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3307/travel_recommendation?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3307/travel_recommendation}
     username: ${SPRING_DATASOURCE_USERNAME:root}
     password: ${SPRING_DATASOURCE_PASSWORD:root}
-    driver-class-name: com.mysql.cj.jdbc.Driver
-  redis:
-    host: localhost
-    port: 6379
+  data:
+    redis:
+      host: localhost
+      port: 6379
   cache:
     type: redis
   jpa:
@@ -19,6 +19,7 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
   jackson:
     property-naming-strategy: SNAKE_CASE
   servlet:
@@ -50,4 +51,8 @@ cloudinary:
 
 logging:
   level:
-    org.springframework.security: DEBUG
+    org.springframework.security: INFO
+
+ai:
+  service:
+    base-url: ${AI_SERVICE_BASE_URL:http://localhost:8000}

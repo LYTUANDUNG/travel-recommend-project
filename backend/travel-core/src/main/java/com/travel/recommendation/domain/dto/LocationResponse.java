@@ -38,6 +38,9 @@ public class LocationResponse {
     private Double distanceScore;
     private Double contextScore;
     private List<String> matchedTags;
+    private String recommendationReason;
+    private String bestTimeToVisit;
+    private String bestTimeReason;
 
     @Data
     @Builder
