@@ -38,7 +38,7 @@ export default function Hero() {
                 </h1>
 
                 <p className="text-lg md:text-xl text-white/90 mb-12 max-w-2xl mx-auto drop-shadow-md">
-                    Lên kế hoạch cho chuyến đi hoàn hảo của bạn với gợi ý thông minh từ trí tuệ nhân tạo.
+                    Lên kế hoạch cho chuyến đi hoàn hảo của bạn với những điểm đến hấp dẫn nhất.
                 </p>
 
                 {/* Search Bar Container */}

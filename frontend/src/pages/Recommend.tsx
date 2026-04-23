@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import MapView from '../components/MapView';
 import LocationCard from '../components/LocationCard';
 import { RecommendationResult } from '../types';
-import { useRecommendations } from '../hooks/useRecommendations';
+import { useCollaborativeRecommendations, useRecommendations } from '../hooks/useRecommendations';
 import { useAuthStore } from '../store/useAuthStore';
 import { useGeoLocation } from '../hooks/useGeoLocation';
 import { Sparkles, MapPin, Compass, LogIn, CloudRain, Sun, Thermometer, Clock } from 'lucide-react';
@@ -24,10 +24,12 @@ export default function Recommend() {
   );
 
   const { isAuthenticated, user } = useAuthStore();
+  const { recommendations: collaborativeRecs } = useCollaborativeRecommendations(user?.user_id, isAuthenticated);
   const navigate = useNavigate();
   const [results, setResults] = useState<RecommendationResult[]>([]);
 
   useEffect(() => {
+    let timeoutId: any;
     if (coords) {
        fetch(`https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lng}&current_weather=true`)
         .then(res => res.json())
@@ -48,23 +50,36 @@ export default function Recommend() {
     } else if (gpsError) {
         setWeather({ temp: 28, label: 'Nắng ráo', code: 'Clear' });
     }
+
+    // Force isReady after 3 seconds if still loading
+    timeoutId = setTimeout(() => {
+        if (!weather) {
+            console.log("Weather fetch timeout - using default");
+            setWeather({ temp: 28, label: 'Nắng ráo', code: 'Clear' });
+        }
+    }, 3000);
+
+    return () => clearTimeout(timeoutId);
   }, [coords, gpsError]);
 
   useEffect(() => {
-    if (smartRecs && Array.isArray(smartRecs)) {
-      setResults(smartRecs.map((loc) => ({
+    const source = (isAuthenticated && collaborativeRecs?.length > 0) ? collaborativeRecs : smartRecs;
+    if (source && Array.isArray(source)) {
+      setResults(source.map((loc) => ({
         location: loc,
-        similarity: loc?.match_score ? loc.match_score / 100 : 0
+        similarity: loc?.match_score
+          ? (loc.match_score > 1 ? loc.match_score / 100 : loc.match_score)
+          : 0
       })).filter(r => r.location));
     }
-  }, [smartRecs]);
+  }, [smartRecs, collaborativeRecs, isAuthenticated]);
 
   if (!isAuthenticated && !loading) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pt-32 pb-20 flex flex-col items-center justify-center container mx-auto px-4">
           <div className="bg-white dark:bg-slate-900 p-12 rounded-[3rem] shadow-2xl border border-slate-100 dark:border-slate-800 text-center max-w-xl">
               <div className="w-20 h-20 bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-3xl flex items-center justify-center mx-auto mb-8">
-                  <Sparkles className="w-10 h-10" />
+                  <Compass className="w-10 h-10" />
               </div>
               <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-4 tracking-tight uppercase">Khám phá hành trình riêng của bạn</h2>
               <p className="text-slate-500 dark:text-slate-400 mb-10 font-medium leading-relaxed">Đăng nhập ngay để hệ thống có thể phân tích sở thích và lịch sử du lịch của bạn, từ đó gợi ý những điểm đến tuyệt vời nhất.</p>
@@ -87,7 +102,7 @@ export default function Recommend() {
         {/* Storytelling Header */}
         <div className="text-center max-w-4xl mx-auto mb-16 space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
             <div className="inline-flex items-center justify-center p-4 bg-primary-50 dark:bg-primary-900/20 text-primary-600 rounded-3xl mb-4">
-                <Sparkles className="w-8 h-8" />
+                <Compass className="w-8 h-8" />
             </div>
             <h1 className="text-5xl md:text-7xl font-serif font-black text-slate-900 dark:text-white leading-[1.1]">
               Chào {user?.full_name}, <br/> 
@@ -104,7 +119,7 @@ export default function Recommend() {
         <div className="max-w-5xl mx-auto mb-24 bg-white dark:bg-slate-900 p-8 md:p-12 rounded-[3.5rem] border border-slate-100 dark:border-slate-800 airy-shadow animate-in slide-in-from-bottom-12 duration-1000">
             <div className="flex flex-col md:flex-row items-center gap-12">
                 <div className="flex-1 space-y-6">
-                   <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-primary-600 mb-4">Hệ thống gợi ý thông minh (Recommendation Engine)</h3>
+                   <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-primary-600 mb-4">Khám phá Điểm đến</h3>
                    <h2 className="text-3xl font-serif font-black text-slate-900 dark:text-white">Cơ chế tính điểm đề xuất</h2>
                    <p className="text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
                        Chúng tôi sử dụng thuật toán <span className="font-bold text-slate-900 dark:text-white">Content-Based Filtering</span> kết hợp với <span className="font-bold text-slate-900 dark:text-white">Cosine Similarity</span> để tìm ra những địa điểm khớp nhất với hành vi của bạn.

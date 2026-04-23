@@ -18,6 +18,8 @@ export interface IAuthApi {
     register(user: Partial<User>): Promise<ApiResponse<User>>;
     logout(): Promise<void>;
     getCurrentUser(): Promise<ApiResponse<User | null>>;
+    forgotPassword(email: string): Promise<ApiResponse<any>>;
+    resetPassword(token: string, newPassword: string): Promise<ApiResponse<any>>;
 }
 
 export interface IUserApi {

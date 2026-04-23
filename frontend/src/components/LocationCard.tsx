@@ -109,7 +109,7 @@ export default function LocationCard({ location, className, onClick, userLat, us
                 "absolute top-4 left-4 px-3 py-1 rounded-full flex items-center gap-1 shadow-sm z-10",
                 match.level === 'high' ? "bg-primary-600 text-white" : "bg-white text-slate-800"
               )}>
-                <Sparkles className="w-3 h-3" />
+                <span className="font-bold text-[10px] uppercase tracking-wider">{Math.round((location.match_score || 0) * 100)}% Phù hợp</span>
                 <span className="text-[10px] font-bold uppercase tracking-wide">{match.text}</span>
               </div>
             );

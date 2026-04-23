@@ -19,11 +19,12 @@ export default function Explore() {
     const [totalElements, setTotalElements] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
-
+    
     const [activeCategory, setActiveCategory] = useState('All');
     const [priceFilter, setPriceFilter] = useState('All');
     const [ratingFilter, setRatingFilter] = useState<number>(0);
     const [provinceFilter, setProvinceFilter] = useState('All');
+    const [sortBy, setSortBy] = useState('Recommended');
 
     const [categories, setCategories] = useState<string[]>(['All']);
     const [provinces, setProvinces] = useState<string[]>(['All']);
@@ -56,25 +57,30 @@ export default function Explore() {
             if (provinceFilter !== 'All') params.province = provinceFilter;
             if (priceFilter !== 'All') params.price = priceFilter;
             if (ratingFilter > 0) params.rating = ratingFilter;
+            
+            // Add sorting params
+            if (sortBy === 'Rating') params.sort = 'averageRating,desc';
+            else if (sortBy === 'Newest') params.sort = 'locationId,desc';
 
             const res = await api.location.getPaginated(params);
             if (res.success && res.data && Array.isArray(res.data.content)) {
                 setPaginatedLocations(res.data.content);
-                setTotalPages(res.data.totalPages || 1);
-                setTotalElements(res.data.totalElements || 0);
+                setTotalPages(res.data.total_pages || res.data.totalPages || 1);
+                setTotalElements(res.data.total_elements || res.data.totalElements || 0);
             } else {
                 setPaginatedLocations([]);
             }
             setIsLoading(false);
         };
         fetchLocations();
-    }, [searchQuery, activeCategory, provinceFilter, priceFilter, ratingFilter, currentPage]);
+    }, [searchQuery, activeCategory, provinceFilter, priceFilter, ratingFilter, currentPage, sortBy]);
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchQuery, activeCategory, provinceFilter, priceFilter, ratingFilter]);
+    }, [searchQuery, activeCategory, provinceFilter, priceFilter, ratingFilter, sortBy]);
 
-    const priceRanges = ['All', '0đ', 'Dưới 100k', '100k - 500k', 'Trên 500k'];
+    const sortOptions = ['Recommended', 'Rating', 'Newest'];
+    const priceRanges = ['All', 'Miễn phí', 'Dưới 100k', '100k - 500k', 'Trên 500k'];
     const ratings = [0, 5, 4, 3]; // 0 is All
 
     return (
@@ -152,19 +158,19 @@ export default function Explore() {
                             </div>
                          </div>
 
-                         {/* Rating Filter */}
+                         {/* Sort Filter */}
                          <div className="space-y-4">
                             <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
-                                <Star className="w-3 h-3 text-amber-500" /> Đánh giá tối thiểu
+                                <Star className="w-3 h-3 text-amber-500" /> Sắp xếp theo
                             </p>
                             <div className="flex flex-wrap gap-2">
-                                {[5, 4, 3].map(r => (
+                                {sortOptions.map(opt => (
                                     <button 
-                                        key={r} 
-                                        onClick={() => setRatingFilter(ratingFilter === r ? 0 : r)}
-                                        className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wide transition-all border ${ratingFilter === r ? 'border-amber-400 bg-amber-50 text-amber-600 dark:bg-amber-900/40' : 'border-slate-100 dark:border-slate-800 text-slate-400 hover:border-slate-300'}`}
+                                        key={opt} 
+                                        onClick={() => setSortBy(opt)}
+                                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wide transition-all border ${sortBy === opt ? 'border-primary-500 bg-primary-50 text-primary-600' : 'border-slate-100 dark:border-slate-800 text-slate-400 hover:border-slate-300'}`}
                                     >
-                                        {r} <Star className="w-2.5 h-2.5 fill-current" />
+                                        {opt === 'Recommended' ? 'Gợi ý nhất' : opt === 'Rating' ? 'Xếp hạng' : 'Mới nhất'}
                                     </button>
                                 ))}
                             </div>
@@ -241,7 +247,7 @@ export default function Explore() {
                                 >
                                     &lt;
                                 </button>
-                                <div className="px-6 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm text-sm font-black text-slate-700 dark:text-slate-200">
+                                <div className="px-6 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm text-sm font-black text-slate-700 dark:text-200">
                                     {currentPage} <span className="text-slate-400 font-medium mx-1">/</span> {totalPages}
                                 </div>
                                 <button 

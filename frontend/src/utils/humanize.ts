@@ -4,7 +4,7 @@
  */
 
 export const humanizeDistance = (lat1?: number, lng1?: number, lat2?: number, lng2?: number): string => {
-  if (!lat1 || !lng1 || !lat2 || !lng2 || lat1 === 0) return "Chưa rõ khoảng cách";
+  if (lat1 == null || lng1 == null || lat2 == null || lng2 == null) return "Chưa rõ khoảng cách";
 
   // Simple haversine (approx)
   const R = 6371; // km

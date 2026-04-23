@@ -18,6 +18,7 @@ interface TripStore {
   updateOrder: (items: TripItem[]) => void;
   clearTrip: () => void;
   syncToBackend: (userId: number) => Promise<void>;
+  loadFromBackend: (userId: number) => Promise<void>;
 }
 
 export const useTripStore = create<TripStore>()(

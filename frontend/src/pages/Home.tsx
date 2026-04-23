@@ -6,7 +6,7 @@ import { useLocationStore } from '../store/useLocationStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useRecommendations } from '../hooks/useRecommendations';
 import { api } from '../api';
-import { Search, Map, MapPin, Compass, TrendingUp, Sparkles, ArrowRight } from 'lucide-react';
+import { Search, Map, MapPin, Compass, TrendingUp, User, ArrowRight } from 'lucide-react';
 import OnboardingModal from '../components/OnboardingModal';
 import { useGeoLocation } from '../hooks/useGeoLocation';
 
@@ -129,63 +129,97 @@ export default function Home() {
   return (
     <div className="min-h-screen pb-20 bg-[#FFFEFA] dark:bg-slate-950 transition-colors duration-700">
       {/* 1. Cinematic Hero - Advanced Premium Layout */}
-      <div className="relative w-full h-[650px] lg:h-[850px] overflow-hidden">
-        {/* Dynamic Background Elements */}
-        <div className="absolute inset-0 z-0">
-            <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary-400/20 blur-[150px] rounded-full animate-pulse-soft" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-secondary-400/20 blur-[150px] rounded-full animate-pulse-soft" style={{ animationDelay: '2s' }} />
+      <div className="container mx-auto px-4 pt-28 pb-8">
+        <div className="relative w-full h-[500px] lg:h-[650px] overflow-hidden rounded-[2.5rem] shadow-2xl">
+          {/* Dynamic Background Elements */}
+          <div className="absolute inset-0 z-0">
+              <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary-400/20 blur-[150px] rounded-full animate-pulse-soft" />
+              <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-secondary-400/20 blur-[150px] rounded-full animate-pulse-soft" style={{ animationDelay: '2s' }} />
+          </div>
+
+          {banners.map((b, idx) => (
+              <div 
+                  key={b.id} 
+                  className={`absolute inset-0 transition-opacity duration-1000 ${idx === currentBanner ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
+              >
+                  <img 
+                    src={b.image_url || b.imageUrl} 
+                    alt={b.title} 
+                    className="w-full h-full object-cover scale-105 animate-in fade-in zoom-in-110 duration-1000" 
+                  />
+                  
+                  {/* Cinematic Overlays */}
+                  <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+                  <div className="absolute inset-0 bg-black/20" />
+
+                  <div className="absolute inset-0 flex flex-col justify-center items-center text-center px-4 z-20">
+                      <div className="max-w-4xl animate-in slide-in-from-bottom-12 duration-1000">
+                          <h1 className="text-5xl md:text-7xl font-sans font-bold text-white mb-6 tracking-tight drop-shadow-md">
+                            Khám phá. Trải nghiệm. Lên đường!
+                          </h1>
+                          <p className="text-white/90 text-lg md:text-xl font-medium mb-12 max-w-2xl mx-auto drop-shadow-sm">
+                            Khám phá những điểm đến tuyệt đẹp, trải nghiệm độc đáo và lên kế hoạch cho chuyến đi hoàn hảo của bạn ngay hôm nay!
+                          </p>
+                      </div>
+                  </div>
+              </div>
+          ))}
         </div>
 
-        {banners.map((b, idx) => (
-            <div 
-                key={b.id} 
-                className={`absolute inset-0 transition-opacity duration-1000 ${idx === currentBanner ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
-            >
-                <img 
-                  src={b.image_url || b.imageUrl} 
-                  alt={b.title} 
-                  className="w-full h-full object-cover scale-105 animate-in fade-in zoom-in-110 duration-1000" 
-                />
-                
-                {/* Cinematic Overlays */}
-                <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-[#FFFEFA] dark:from-slate-950 via-[#FFFEFA]/50 dark:via-slate-950/50 to-transparent" />
-                <div className="absolute inset-0 bg-black/10" />
-
-                <div className="absolute inset-0 flex flex-col justify-center items-center text-center px-4 z-20">
-                    <div className="max-w-4xl animate-in slide-in-from-bottom-12 duration-1000">
-                        <div className="flex justify-center mb-10">
-                            <span className="px-6 py-2 bg-white/20 backdrop-blur-3xl border border-white/30 rounded-full text-[10px] font-black uppercase tracking-[0.3em] text-white shadow-2xl flex items-center gap-2">
-                                <Sparkles className="w-3 h-3 text-amber-400" /> Khám phá hành trình mới
-                            </span>
-                        </div>
-                        <h1 className="text-6xl md:text-9xl font-serif font-black text-slate-900 dark:text-white leading-[0.85] mb-10 tracking-tighter filter drop-shadow-2xl">
-                          {b.title}
-                        </h1>
-                        <p className="text-slate-600 dark:text-white/70 text-lg md:text-2xl font-serif italic mb-14 max-w-2xl mx-auto leading-relaxed">
-                          Lên kế hoạch dễ dàng, trải nghiệm trọn vẹn tại hàng ngàn điểm đến khắp Việt Nam.
-                        </p>
-                        
-                        {/* Premium Search Bar */}
-                        <div className="relative group max-w-2xl mx-auto">
-                            <div className="absolute -inset-0.5 bg-gradient-to-r from-primary-600 to-amber-600 rounded-3xl blur opacity-30 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
-                            <div className="relative flex items-center bg-white dark:bg-slate-900 rounded-3xl p-3 shadow-2xl border border-slate-100 dark:border-slate-800">
-                                <div className="pl-6 pr-4 border-r border-slate-100 dark:border-slate-800">
-                                    <MapPin className="w-5 h-5 text-primary-500" />
+        {/* Functional Dribbble Style Search Bar */}
+        <div className="relative z-30 -mt-16 w-full max-w-5xl mx-auto px-4">
+                            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-100 dark:border-slate-800 text-left">
+                                {/* Categories Tabs (Real Functionality) */}
+                                <div className="flex items-center gap-6 border-b border-slate-100 dark:border-slate-800 pb-4 mb-4 overflow-x-auto custom-scrollbar">
+                                    <button 
+                                        className="flex items-center gap-2 text-sm font-bold text-[#0070F3] border-b-2 border-[#0070F3] pb-4 -mb-[17px] whitespace-nowrap"
+                                        onClick={() => navigate('/explore')}
+                                    >
+                                        <Compass className="w-4 h-4" />
+                                        Tất cả
+                                    </button>
+                                    {(activeCategories.length > 0 ? activeCategories : [
+                                      { name: 'Khách sạn', id: 1 },
+                                      { name: 'Nhà hàng', id: 2 },
+                                      { name: 'Cà phê', id: 3 },
+                                      { name: 'Văn hóa', id: 4 },
+                                    ]).map(cat => (
+                                        <button 
+                                            key={cat.id || cat.name}
+                                            onClick={() => navigate(`/explore?category=${cat.name}`)}
+                                            className="flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 pb-4 -mb-[17px] whitespace-nowrap transition-colors"
+                                        >
+                                            {cat.name}
+                                        </button>
+                                    ))}
                                 </div>
-                                <input 
-                                    type="text" 
-                                    placeholder="Tìm kho báu thiên nhiên..." 
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    onKeyPress={(e) => e.key === 'Enter' && navigate(`/explore?q=${searchQuery}`)}
-                                    className="flex-1 px-4 py-3 bg-transparent text-slate-800 dark:text-white outline-none text-base font-bold placeholder:text-slate-400 font-sans"
-                                />
-                                <button 
-                                    onClick={() => navigate(`/explore?q=${searchQuery}`)}
-                                    className="px-10 py-4 bg-slate-900 dark:bg-primary-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] hover:scale-95 transition-all shadow-xl flex items-center gap-2"
-                                >
-                                    <Search className="w-4 h-4" /> Khám phá
-                                </button>
+                                
+                                {/* Search Input (Real Functionality) */}
+                                <div className="flex flex-col lg:flex-row items-center gap-4 lg:gap-0 mt-6">
+                                    <div className="flex-1 w-full flex items-center px-4 py-2">
+                                        <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-full mr-4 text-[#0070F3]">
+                                            <MapPin className="w-6 h-6" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="text-xs font-bold text-slate-800 dark:text-white mb-1 uppercase tracking-wider">Bạn muốn đi đâu?</div>
+                                            <input 
+                                                type="text" 
+                                                placeholder="Tìm kiếm kho báu thiên nhiên..." 
+                                                value={searchQuery}
+                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                onKeyPress={(e) => e.key === 'Enter' && navigate(`/explore?q=${searchQuery}`)}
+                                                className="w-full bg-transparent text-lg font-bold text-slate-800 dark:text-white outline-none placeholder:text-slate-400 placeholder:font-normal"
+                                            />
+                                        </div>
+                                        
+                                        <button 
+                                            onClick={() => navigate(`/explore?q=${searchQuery}`)}
+                                            className="ml-4 px-10 py-4 bg-[#0070F3] hover:bg-[#005bb5] text-white rounded-full font-bold text-sm hover:scale-95 transition-all flex items-center gap-2 shadow-lg shadow-blue-500/30"
+                                        >
+                                            <Search className="w-5 h-5" /> Tìm kiếm
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
 
                             {/* Admin Quick Link */}
@@ -200,31 +234,9 @@ export default function Home() {
                                 </div>
                             )}
                         </div>
-                    </div>
-                </div>
-            </div>
-        ))}
       </div>
 
-      <div className="container mx-auto px-4 -mt-8 relative z-30">
-        {/* Categories Bar */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-800 flex flex-wrap md:flex-nowrap gap-4 items-center justify-between xl:mx-16 mb-16">
-            <div className="flex gap-4 w-full overflow-x-auto custom-scrollbar md:justify-center">
-                {(activeCategories.length > 0 ? activeCategories : [
-                  { name: 'Khách sạn', id: 1 },
-                  { name: 'Nhà hàng', id: 2 },
-                  { name: 'Cà phê', id: 3 },
-                  { name: 'Văn hóa', id: 4 },
-                ]).map(cat => (
-                    <a href={`/explore?category=${cat.name}`} key={cat.name} className="flex flex-col items-center gap-2 min-w-[100px] p-4 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors group border border-transparent hover:border-slate-200">
-                        <div className="bg-slate-100 dark:bg-slate-800 p-3 rounded-full group-hover:bg-primary-50 group-hover:text-primary-600 transition-colors">
-                             <Compass className="w-5 h-5" />
-                        </div>
-                        <span className="font-bold text-sm tracking-tight">{cat.name}</span>
-                    </a>
-                ))}
-            </div>
-        </div>
+      <div className="container mx-auto px-4 relative z-30">
 
         {/* Personalized Journey (Collaborative AI) */}
         {isAuthenticated && recommendations.length > 0 && (
@@ -234,7 +246,7 @@ export default function Home() {
                       <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">
                         Gợi ý dành riêng cho {user?.full_name}
                       </h2>
-                      <p className="text-slate-500 font-medium">Bí mật dựa trên sở thích của bạn do trí tuệ nhân tạo chọn lọc.</p>
+                      <p className="text-slate-500 font-medium">Những địa điểm tuyệt vời nhất dành riêng cho bạn.</p>
                   </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -297,7 +309,7 @@ export default function Home() {
           <div className="flex items-center justify-between mb-8">
             <div>
               <h2 className="text-2xl font-bold text-slate-800 dark:text-white tracking-tight flex items-center gap-2">
-                 <Sparkles className="w-6 h-6 text-amber-500" /> Vừa mới đăng tải
+                 Vừa mới đăng tải
               </h2>
               <p className="text-slate-500 font-medium text-sm mt-1">Những địa điểm mới nhất vừa được bổ sung vào hệ thống.</p>
             </div>

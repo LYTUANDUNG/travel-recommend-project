@@ -12,7 +12,7 @@ import { useGeoLocation } from '../hooks/useGeoLocation';
 import { api } from '../api';
 import { externalApi } from '../api/external';
 import LocationCard from '../components/LocationCard';
-import { MapPin, Clock, DollarSign, Calendar, Heart, Share2, Check, Sparkles, PlusCircle, Star, Info } from 'lucide-react';
+import { MapPin, Clock, DollarSign, Calendar, Heart, Share2, Check, Compass, PlusCircle, Star, Info } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { humanizeDistance } from '../utils/humanize';
 import { cn } from '../utils/cn';
@@ -297,7 +297,7 @@ export default function Detail() {
 
                     {/* Preview Experience (Highlight) */}
                     <div className="bg-primary-50/50 dark:bg-primary-900/10 rounded-[4rem] p-12 lg:p-20 mb-20 border border-primary-100/50 relative overflow-hidden group">
-                        <Sparkles className="absolute -top-10 -right-10 w-40 h-40 text-primary-200/30 dark:text-primary-800/20 group-hover:scale-110 transition-transform duration-1000" />
+                        <Compass className="absolute -top-10 -right-10 w-40 h-40 text-primary-200/30 dark:text-primary-800/20 group-hover:scale-110 transition-transform duration-1000" />
                         <div className="relative z-10">
                             <h3 className="text-xs font-black uppercase tracking-[0.3em] text-primary-600 mb-10">Một ngày ở đây sẽ như thế nào?</h3>
                             <p className="text-2xl md:text-3xl text-slate-800 dark:text-slate-200 font-serif italic leading-[1.6]">

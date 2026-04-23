@@ -18,10 +18,14 @@ export const useAuthStore = create<AuthState>()(
             user: null,
             isAuthenticated: false,
 
-            loginAsUser: (userData: User) => set({
-                user: userData,
-                isAuthenticated: true
-            }),
+            loginAsUser: (userData: User) => {
+                set({
+                    user: userData,
+                    isAuthenticated: true
+                });
+                // Restore trip planner from backend
+                useTripStore.getState().loadFromBackend(userData.user_id);
+            },
 
             logout: () => {
                 set({

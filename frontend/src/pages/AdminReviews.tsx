@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
 import { Review } from '../types/schema';
-import { Trash2, Loader2, Star, MessageSquare, MapPin, Calendar, Search, Filter, CheckCircle, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Star, MessageSquare, MapPin, Calendar, Search, Eye, EyeOff } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '../utils/cn';
 
@@ -27,18 +27,6 @@ export default function AdminReviews() {
         fetchReviews();
     }, []);
 
-    const handleDelete = async (id: number) => {
-        if (!window.confirm("Bạn có chắc chắn muốn xóa Bình luận này?")) return;
-        try {
-            const res = await api.client.delete(`/reviews/${id}`);
-            if (res.data.success) {
-                fetchReviews();
-            }
-        } catch (err) {
-            alert("Lỗi khi xóa bình luận");
-        }
-    };
-
     const handleUpdateStatus = async (id: number, status: string) => {
         try {
             const res = await api.client.put(`/reviews/${id}/status`, { status });
@@ -47,8 +35,8 @@ export default function AdminReviews() {
             } else {
                 alert("Lỗi: " + res.data.message);
             }
-        } catch (err) {
-            alert("Lỗi khi cập nhật trạng thái");
+        } catch (err: any) {
+            alert("Lỗi khi cập nhật trạng thái: " + (err?.response?.data?.message || err?.message || 'Unknown'));
         }
     };
 
@@ -128,9 +116,9 @@ export default function AdminReviews() {
                                                 <span className="ml-2 font-black text-slate-900 dark:text-white">{r.rating}</span>
                                             </div>
                                             <div>
-                                                {r.verify_status === 'APPROVED' ? (
+                                                {(r.verify_status || r.verifyStatus) === 'APPROVED' ? (
                                                     <span className="text-[10px] font-black uppercase text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">Đã duyệt</span>
-                                                ) : r.verify_status === 'HIDDEN' ? (
+                                                ) : (r.verify_status || r.verifyStatus) === 'HIDDEN' ? (
                                                     <span className="text-[10px] font-black uppercase text-rose-600 bg-rose-50 px-2 py-0.5 rounded">Đã ẩn</span>
                                                 ) : (
                                                     <span className="text-[10px] font-black uppercase text-slate-500 bg-slate-50 px-2 py-0.5 rounded">Chờ duyệt</span>
@@ -147,31 +135,14 @@ export default function AdminReviews() {
                                     <td className="px-8 py-5 text-right">
                                         <div className="flex justify-end gap-1">
                                             <button
-                                                onClick={() => handleUpdateStatus(r.review_id, 'APPROVED')}
-                                                className={cn(
-                                                    "p-2 rounded-xl transition-all",
-                                                    r.verify_status === 'APPROVED' ? "text-emerald-600 bg-emerald-50" : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
-                                                )}
-                                                title="Duyệt bình luận"
-                                            >
-                                                <CheckCircle className="w-5 h-5" />
-                                            </button>
-                                            <button
                                                 onClick={() => handleUpdateStatus(r.review_id, 'HIDDEN')}
                                                 className={cn(
                                                     "p-2 rounded-xl transition-all",
-                                                    r.verify_status === 'HIDDEN' ? "text-rose-600 bg-rose-50" : "text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                                                    (r.verify_status || r.verifyStatus) === 'HIDDEN' ? "text-rose-600 bg-rose-50" : "text-slate-400 hover:text-rose-600 hover:bg-rose-50"
                                                 )}
                                                 title="Ẩn bình luận"
                                             >
-                                                {r.verify_status === 'HIDDEN' ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(r.review_id)}
-                                                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
-                                                title="Xóa vĩnh viễn"
-                                            >
-                                                <Trash2 className="w-5 h-5" />
+                                                {(r.verify_status || r.verifyStatus) === 'HIDDEN' ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                             </button>
                                         </div>
                                     </td>

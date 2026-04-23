@@ -1,17 +1,16 @@
 import os
 import time
+import random
 import requests
 import mysql.connector
 from duckduckgo_search import DDGS
 import cloudinary
 import cloudinary.uploader
-import random
 from dotenv import load_dotenv
-import requests
-import os
 
 load_dotenv()
 
+# Database configuration
 DB_CONFIG = {
     "host": os.getenv("DB_HOST", "localhost"),
     "port": int(os.getenv("DB_PORT", 3307)),
@@ -20,6 +19,7 @@ DB_CONFIG = {
     "database": os.getenv("DB_NAME", "travel_recommendation")
 }
 
+# Cloudinary configuration
 CLOUDINARY_URL = os.getenv("CLOUDINARY_URL")
 if CLOUDINARY_URL:
     try:
@@ -28,111 +28,140 @@ if CLOUDINARY_URL:
             api_key=CLOUDINARY_URL.split('://')[1].split(':')[0],
             api_secret=CLOUDINARY_URL.split(':')[2].split('@')[0]
         )
-    except: pass
+    except Exception as e:
+        print(f"[ERROR] Cloudinary config failed: {e}", flush=True)
 
-def search_ddg(query):
-    """Tìm ảnh qua DDG một lần duy nhất, lỗi là nghỉ"""
-    try:
-        with DDGS() as ddgs:
-            results = list(ddgs.images(query, max_results=3))
-            if results:
-                return [r["image"] for r in results]
+# PHẦN SERPER.DEV - (Giải pháp Production)
+# SERPER_API_KEY = os.getenv("SERPER_API_KEY")
+
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Edge/123.0.2420.81",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+]
+
+def search_ddg_optimized(query):
+    """
+    Tìm ảnh qua DuckDuckGo với:
+    - Cách 4: Rotate User-Agent
+    - Cách 2: Retry + Backoff
+    """
+    for attempt in range(3):
+        ua = random.choice(USER_AGENTS)
+        try:
+            with DDGS(headers={"User-Agent": ua}, timeout=10) as ddgs:
+                results = list(ddgs.images(query, max_results=3))
+                if results:
+                    return [r["image"] for r in results]
+                return []
+        except Exception as e:
+            if "403" in str(e):
+                # Backoff: Nghỉ lâu dần (2s, 4s, 8s)
+                wait_time = 2 ** (attempt + 1)
+                print(f"   [RETRY] DDG Blocked, attempt {attempt+1}/3. Waiting {wait_time}s...", flush=True)
+                time.sleep(wait_time)
+                continue
             return []
-    except Exception as e:
-        print(f"[WARNING] DDG Error '{e}'. Bỏ qua vì bị chặn Rate-limit.")
-        return []
+    return "BLOCK"
 
-def search_unsplash(query):
-    """Fallback Unsplash API"""
-    api_key = os.getenv("UNSPLASH_API_KEY") # Add to .env if you want this fallback active
-    if not api_key:
-        return []
-    try:
-        res = requests.get("https://api.unsplash.com/search/photos", params={
-            "query": query + " vietnam interior",
-            "per_page": 3,
-            "client_id": api_key
-        }, timeout=10)
-        
-        if res.status_code == 200:
-            data = res.json()
-            return [img["urls"]["regular"] for img in data.get("results", [])]
-    except Exception as e:
-        print(f"[WARNING] Unsplash Error: {e}")
-    return []
+def generate_smart_query(loc):
+    """Làm giàu câu lệnh (Standard Logic)"""
+    name = (loc.get('name') or "").strip()
+    category = (loc.get('category') or "").lower()
+    province = (loc.get('province') or "").strip()
+    address = (loc.get('address') or "").strip()
 
-def get_images_batch(query, count=3):
-    """Tìm nhiều ảnh sử dụng architecture DDG + Unsplash Fallback"""
-    images = search_ddg(query + " Vietnam travel")
-    if images:
-        return images[:count]
-        
-    print(f"[FALLBACK] DDG Failed/Rate Limited for '{query}', falling back to Unsplash API...")
-    return search_unsplash(query)[:count]
-
-def clean_query(name, province):
-    # Lọc bỏ các từ rườm rà
-    remove_words = ["Phường", "Quận", "Thành phố", "Xã", "Huyện", "Tỉnh"]
-    clean_name = name
-    for w in remove_words:
-        clean_name = clean_name.replace(w, "").strip()
-    return f"{clean_name} {province} Vietnam"
+    search_target = name if (name and name.lower() != "unnamed location") else f"{category} tại {address}"
+    enrichment = "interior exterior real photo travel"
+    if any(k in search_target.lower() or k in category for k in ["cinema", "rạp"]):
+        enrichment = "cinema interior screen hall theater lobby"
+    elif any(k in category for k in ["restaurant", "ăn uống", "cafe"]):
+        enrichment = "interior decor table food"
+    
+    return f"{search_target} {province} Vietnam {enrichment} real photo"
 
 def process_location(loc):
-    """Xử lý 1 địa điểm đơn lẻ"""
     loc_id = loc['location_id']
-    name = loc['name']
-    province = loc['province'] or ""
+    name = (loc['name'] or "").strip()
     thumb = loc['thumbnail_url'] or ""
 
-    # Nếu đã có ảnh xịn rồi thì bỏ qua
-    if thumb and "cloudinary" in thumb:
-        return None
+    if thumb and "cloudinary" in thumb: return None
 
-    search_query = clean_query(name, province)
-    print(f"[SEARCH] Đang tìm ảnh cho: {name} ({province})")
+    query = generate_smart_query(loc)
+    print(f"\n[SCAN] -> {name if name.lower() != 'unnamed location' else 'Unnamed Location'}...", flush=True)
     
-    img_urls = get_images_batch(search_query, count=1)
+    img_urls = search_ddg_optimized(query)
     
-    if img_urls:
+    if img_urls == "BLOCK":
+        return "WAIT"
+
+    if img_urls and isinstance(img_urls, list):
         source_url = img_urls[0]
         try:
-            res = cloudinary.uploader.upload(source_url, folder="travel_recommendation/auto_v3")
+            res = cloudinary.uploader.upload(source_url, folder="travel_recommendation/optimized_v5", timeout=20)
             new_url = res.get("secure_url")
+            print(f"   [SUCCESS] -> {new_url}", flush=True)
             return (new_url, loc_id)
-        except:
+        except Exception as e:
+            print(f"   [ERROR] Cloudinary fetch failed: {e}", flush=True)
             return None
+            
+    print(f"   [FAILED] No images found.", flush=True)
     return None
 
 def enrich_fast():
-    print("[START] Bắt đầu Parallel Enrichment (Address-Based)...")
-    conn = mysql.connector.connect(**DB_CONFIG)
-    cursor = conn.cursor(dictionary=True)
+    print("="*60, flush=True)
+    print("  IMAGE ENRICHMENT SYSTEM (FULL BEST PRACTICES)")
+    print("="*60, flush=True)
     
-    cursor.execute("SELECT l.location_id, l.name, l.address, l.province, l.thumbnail_url, c.name as category FROM locations l LEFT JOIN categories c ON l.category_id = c.category_id")
-    locations = cursor.fetchall()
+    # Cách 3: BATCH_SIZE (Giảm tốc độ queue)
+    BATCH_SIZE = 5
     
-    # Lọc những nơi cần ảnh
-    to_process = [l for l in locations if not l['thumbnail_url'] or "unsplash" in l['thumbnail_url']]
-    print(f"[DATA] Cần xử lý {len(to_process)}/{len(locations)} địa điểm.")
+    try:
+        conn = mysql.connector.connect(**DB_CONFIG)
+        cursor = conn.cursor(dictionary=True)
+        query = """
+            SELECT l.location_id, l.name, l.province, l.address, l.thumbnail_url, c.name as category 
+            FROM locations l
+            LEFT JOIN categories c ON l.category_id = c.category_id
+            WHERE (l.thumbnail_url IS NULL OR l.thumbnail_url = '' OR l.thumbnail_url LIKE '%unsplash.com%')
+        """
+        cursor.execute(query)
+        to_process = cursor.fetchall()
+        print(f"[DATA] Total: {len(to_process)} location(s). Batch Size: {BATCH_SIZE}", flush=True)
 
-    success = 0
-    # Chạy tuần tự với delay để tránh bị chặn bởi DuckDuckGo
-    for loc in to_process:
-        res = process_location(loc)
-        if res:
-            new_url, loc_id = res
-            cursor.execute("UPDATE locations SET thumbnail_url = %s WHERE location_id = %s", (new_url, loc_id))
-            success += 1
-            if success % 5 == 0:
-                conn.commit()
-                print(f"[SAVE] Đã lưu tiến độ: {success} ảnh.")
-        time.sleep(random.uniform(1.5, 3.5)) # Delay chống block
+        count = 0
+        for loc in to_process:
+            res = process_location(loc)
+            
+            if res == "WAIT":
+                # Nếu bị block nặng, nghỉ hẳn 30s trước khi sang cái tiếp theo
+                print("   [!] Severe Block detected. Resting 30s...", flush=True)
+                time.sleep(30)
+                continue
 
-    conn.commit()
-    cursor.close()
-    conn.close()
-    print(f"[DONE] Hoàn tất! Đã cập nhật {success} địa điểm với độ chính xác cao.")
+            if isinstance(res, tuple):
+                cursor.execute("UPDATE locations SET thumbnail_url = %s WHERE location_id = %s", (res[0], res[1]))
+                count += 1
+                
+                # Cách 3: Commit theo Batch
+                if count % BATCH_SIZE == 0:
+                    conn.commit()
+                    print(f"   [BATCH] Commited progress: {count} images.", flush=True)
+            
+            # Cách 1: Thêm delay ngẫu nhiên (An toàn hơn yêu cầu)
+            delay = random.uniform(5.0, 10.0)
+            print(f"   [IDLE] {delay:.1f}s...", flush=True)
+            time.sleep(delay)
+
+        conn.commit()
+        cursor.close(); conn.close()
+        print("\n" + "="*60, flush=True)
+        print("  ALL TASKS COMPLETED!", flush=True)
+        print("="*60, flush=True)
+    except Exception as e:
+        print(f"[CRITICAL] {e}", flush=True)
 
 if __name__ == "__main__":
     enrich_fast()

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
-import { User, Mail, MapPin, Calendar, Settings, Heart, History, LogOut, Loader2, Camera, Sparkles } from 'lucide-react';
+import { User, Mail, MapPin, Calendar, Settings, Heart, History, LogOut, Loader2, Camera, Sparkles, Lock } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { api } from '../api';
 import { Location, Favorite, VisitRequest } from '../types/schema';

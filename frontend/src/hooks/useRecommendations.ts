@@ -14,7 +14,9 @@ export function useRecommendations(lat?: number, lng?: number, hour?: number, we
         api.location.getPersonalizedRecommendations(lat, lng, hour, weather)
             .then(res => {
                 if (isMounted && res.success) {
-                    setRecommendations(res.data);
+                    setRecommendations(res.data || []);
+                } else if (isMounted) {
+                    setRecommendations([]);
                 }
             })
             .catch(error => {
@@ -27,5 +29,30 @@ export function useRecommendations(lat?: number, lng?: number, hour?: number, we
         return () => { isMounted = false; };
     }, [lat, lng, hour, weather, isReady]);
 
-    return { recommendations, loading: !isReady || loading };
+    return { recommendations, loading: isReady ? loading : false };
+}
+
+export function useCollaborativeRecommendations(userId?: number, isReady: boolean = true) {
+    const [recommendations, setRecommendations] = useState<Location[]>([]);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (!userId || !isReady) return;
+
+        let isMounted = true;
+        setLoading(true);
+        api.location.getRecommendations(userId)
+            .then(res => {
+                if (isMounted && res.success) {
+                    setRecommendations(res.data || []);
+                }
+            })
+            .finally(() => {
+                if (isMounted) setLoading(false);
+            });
+
+        return () => { isMounted = false; };
+    }, [userId, isReady]);
+
+    return { recommendations, loading: isReady ? loading : false };
 }

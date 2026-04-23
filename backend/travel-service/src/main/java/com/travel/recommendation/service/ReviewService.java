@@ -40,11 +40,11 @@ public class ReviewService {
 
     @Transactional
     public ReviewDto saveReview(ReviewDto reviewDto) {
-        log.info("Starting saveReview for user {} at location {}", reviewDto.getUserId(), reviewDto.getLocationId());
+//        log.info("Starting saveReview for user {} at location {}", reviewDto.getUserId(), reviewDto.getLocationId());
         
         // Enforce 1 review per location
         if (reviewRepository.existsByUser_IdAndLocation_Id(reviewDto.getUserId(), reviewDto.getLocationId())) {
-            log.warn("User {} already reviewed location {}", reviewDto.getUserId(), reviewDto.getLocationId());
+//            log.warn("User {} already reviewed location {}", reviewDto.getUserId(), reviewDto.getLocationId());
             throw new RuntimeException("Bạn đã đánh giá địa điểm này rồi. Mỗi người dùng chỉ được đánh giá 1 lần.");
         }
 
@@ -56,7 +56,7 @@ public class ReviewService {
         // Verification check: User must have an APPROVED visit request for this location
         boolean canReview = visitRequestService.canUserReview(user.getId(), location.getId());
         if (!canReview) {
-            log.warn("User {} is not eligible to review location {}. No approved visit found.", user.getId(), location.getId());
+//            log.warn("User {} is not eligible to review location {}. No approved visit found.", user.getId(), location.getId());
             List<com.travel.recommendation.domain.dto.VisitRequestDto> requests = visitRequestService.getUserRequests(user.getId());
             String existingStatus = requests.stream()
                 .filter(r -> r.getLocationId().equals(location.getId()))
@@ -66,7 +66,7 @@ public class ReviewService {
             throw new RuntimeException("Hệ thống chỉ cho phép đánh giá sau khi bạn đã có yêu cầu tham quan được DUYỆT hoặc HOÀN THÀNH. Trạng thái hiện tại: [" + existingStatus + "]");
         }
 
-        log.info("Creating review entity for user {} and location {}", user.getFullName(), location.getName());
+//        log.info("Creating review entity for user {} and location {}", user.getFullName(), location.getName());
         Review review = Review.builder()
                 .user(user)
                 .location(location)
@@ -82,10 +82,10 @@ public class ReviewService {
         try {
             Review savedReview = reviewRepository.save(review);
             locationService.syncStats(savedReview.getLocation().getId());
-            log.info("Successfully saved review (ID: {}) and synced stats.", savedReview.getId());
+//            log.info("Successfully saved review (ID: {}) and synced stats.", savedReview.getId());
             return mapToDto(savedReview);
         } catch (Exception e) {
-            log.error("Database error while saving review: {}", e.getMessage(), e);
+//            log.error("Database error while saving review: {}", e.getMessage(), e);
             throw e;
         }
     }

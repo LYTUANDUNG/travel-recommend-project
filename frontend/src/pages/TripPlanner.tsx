@@ -94,7 +94,7 @@ export default function TripPlanner() {
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
           <div>
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary-50 dark:bg-primary-900/20 text-primary-600 rounded-full text-[10px] font-black uppercase tracking-widest mb-6">
-               <Sparkles className="w-3 h-3" /> Trip Builder v2.0
+               Trip Builder v2.0
             </div>
             <h1 className="text-5xl md:text-7xl font-serif font-black text-slate-900 dark:text-white leading-tight">
               Lộ trình <br/><span className="text-primary-600">khám phá.</span>

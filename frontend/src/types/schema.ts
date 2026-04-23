@@ -28,6 +28,7 @@ export interface User {
     created_at: string; // ISO Date
     last_avatar_update?: string;
     interests?: string[]; // Joined/Computed for Frontend
+    is_active?: boolean;
 }
 
 export interface Category {
