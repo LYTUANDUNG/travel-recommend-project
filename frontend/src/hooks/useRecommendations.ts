@@ -60,13 +60,28 @@ export function useCollaborativeRecommendations(userId?: number, isReady: boolea
 export function useAiContentRecommendations(userId?: number, seedLocationId?: number, isReady: boolean = true) {
     const [recommendations, setRecommendations] = useState<Location[]>([]);
     const [loading, setLoading] = useState(false);
+    const [threshold, setThreshold] = useState(() => {
+        const saved = localStorage.getItem('ai_cb_threshold');
+        return saved ? parseFloat(saved) : 0.4;
+    });
+
+    useEffect(() => {
+        const handleThresholdChange = (e: Event) => {
+            const customEvent = e as CustomEvent;
+            if (customEvent.detail && typeof customEvent.detail.cbThreshold === 'number') {
+                setThreshold(customEvent.detail.cbThreshold);
+            }
+        };
+        window.addEventListener('aiThresholdChange', handleThresholdChange);
+        return () => window.removeEventListener('aiThresholdChange', handleThresholdChange);
+    }, []);
 
     useEffect(() => {
         if (!seedLocationId || !isReady) return;
 
         let isMounted = true;
         setLoading(true);
-        aiRecommendationApi.getContent(seedLocationId, userId)
+        aiRecommendationApi.getContent(seedLocationId, userId, 12, threshold)
             .then(res => {
                 if (isMounted) setRecommendations(res.success ? (res.data || []) : []);
             })
@@ -75,7 +90,7 @@ export function useAiContentRecommendations(userId?: number, seedLocationId?: nu
             });
 
         return () => { isMounted = false; };
-    }, [seedLocationId, userId, isReady]);
+    }, [seedLocationId, userId, isReady, threshold]);
 
     return { recommendations, loading: isReady ? loading : false };
 }
@@ -83,13 +98,28 @@ export function useAiContentRecommendations(userId?: number, seedLocationId?: nu
 export function useAiCollaborativeRecommendations(userId?: number, isReady: boolean = true) {
     const [recommendations, setRecommendations] = useState<Location[]>([]);
     const [loading, setLoading] = useState(false);
+    const [threshold, setThreshold] = useState(() => {
+        const saved = localStorage.getItem('ai_cf_threshold');
+        return saved ? parseFloat(saved) : 0.5;
+    });
+
+    useEffect(() => {
+        const handleThresholdChange = (e: Event) => {
+            const customEvent = e as CustomEvent;
+            if (customEvent.detail && typeof customEvent.detail.cfThreshold === 'number') {
+                setThreshold(customEvent.detail.cfThreshold);
+            }
+        };
+        window.addEventListener('aiThresholdChange', handleThresholdChange);
+        return () => window.removeEventListener('aiThresholdChange', handleThresholdChange);
+    }, []);
 
     useEffect(() => {
         if (!userId || !isReady) return;
 
         let isMounted = true;
         setLoading(true);
-        aiRecommendationApi.getCollaborative(userId)
+        aiRecommendationApi.getCollaborative(userId, 12, threshold)
             .then(res => {
                 if (isMounted) setRecommendations(res.success ? (res.data || []) : []);
             })
@@ -98,7 +128,7 @@ export function useAiCollaborativeRecommendations(userId?: number, isReady: bool
             });
 
         return () => { isMounted = false; };
-    }, [userId, isReady]);
+    }, [userId, isReady, threshold]);
 
     return { recommendations, loading: isReady ? loading : false };
 }

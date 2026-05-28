@@ -26,21 +26,25 @@ const normalizeScore = (score?: number) => {
     return value > 1 ? value / 100 : value;
 };
 
-const hydrateRankedItems = async (items: AiRankedItem[]): Promise<Location[]> => {
+const hydrateRankedItems = async (items: AiRankedItem[], threshold = MIN_RECOMMENDATION_SCORE): Promise<Location[]> => {
     const eligibleItems = items
         .map((item) => ({
             id: item.placeId ?? item.place_id ?? item.location_id,
             score: normalizeScore(item.score)
         }))
-        .filter((item): item is { id: number; score: number } => !!item.id && item.score >= MIN_RECOMMENDATION_SCORE);
+        .filter((item): item is { id: number; score: number } => !!item.id && item.score >= threshold);
 
     const ids = eligibleItems.map((item) => item.id);
     const scoreById = new Map(eligibleItems.map((item) => [item.id, item.score]));
 
-    const res = await api.location.getByIds(ids);
+    // Deduplicate IDs to prevent firing duplicate parallel requests for the same location
+    const uniqueIds = Array.from(new Set(ids));
+    if (uniqueIds.length === 0) return [];
+
+    const res = await api.location.getByIds(uniqueIds);
     if (!res.success || !Array.isArray(res.data)) {
         const hydrated = await Promise.all(
-            ids.map(async (id) => {
+            uniqueIds.map(async (id) => {
                 const single = await api.location.getById(id);
                 if (!single.success || !single.data?.location_id) return null;
                 return { ...single.data, match_score: scoreById.get(id) || 0 };
@@ -54,7 +58,7 @@ const hydrateRankedItems = async (items: AiRankedItem[]): Promise<Location[]> =>
 
     const locationById = new Map(res.data.map((loc) => [loc.location_id, loc]));
 
-    return ids.reduce<Location[]>((acc, id) => {
+    return uniqueIds.reduce<Location[]>((acc, id) => {
         const loc = locationById.get(id);
         if (loc) {
             acc.push({ ...loc, match_score: scoreById.get(id) || 0 });
@@ -64,32 +68,34 @@ const hydrateRankedItems = async (items: AiRankedItem[]): Promise<Location[]> =>
 };
 
 export const aiRecommendationApi = {
-    getContent: async (locationId: number, userId?: number, topN = 12): Promise<ApiResponse<Location[]>> => {
+    getContent: async (locationId: number, userId?: number, topN = 12, threshold = MIN_RECOMMENDATION_SCORE): Promise<ApiResponse<Location[]>> => {
         try {
             const response = await aiClient.get('/recommend/content', {
                 params: {
                     location_id: locationId,
                     user_id: userId,
-                    top_n: topN
+                    top_n: topN,
+                    threshold: threshold
                 }
             });
             const data = Array.isArray(response.data?.data) ? response.data.data : [];
-            return { success: true, data: await hydrateRankedItems(data), message: response.data?.message };
+            return { success: true, data: await hydrateRankedItems(data, threshold), message: response.data?.message };
         } catch (error: any) {
             return { success: false, data: [], message: error.response?.data?.message || 'AI content recommendations failed' };
         }
     },
 
-    getCollaborative: async (userId: number, topN = 12): Promise<ApiResponse<Location[]>> => {
+    getCollaborative: async (userId: number, topN = 12, threshold = MIN_RECOMMENDATION_SCORE): Promise<ApiResponse<Location[]>> => {
         try {
             const response = await aiClient.get('/recommend/collaborative', {
                 params: {
                     user_id: userId,
-                    top_n: topN
+                    top_n: topN,
+                    threshold: threshold
                 }
             });
             const data = Array.isArray(response.data?.data) ? response.data.data : [];
-            return { success: true, data: await hydrateRankedItems(data), message: response.data?.message };
+            return { success: true, data: await hydrateRankedItems(data, threshold), message: response.data?.message };
         } catch (error: any) {
             return { success: false, data: [], message: error.response?.data?.message || 'AI collaborative recommendations failed' };
         }

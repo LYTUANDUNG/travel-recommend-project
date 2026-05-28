@@ -1,15 +1,21 @@
 {
     "collaborative": {
-        "mae": 0.5133,
-        "rmse": 0.6283,
-        "precision": 0.9413,
-        "recall": 0.9348,
-        "f1": 0.9375
+        "mae": 1.96,
+        "rmse": 2.0432,
+        "precision": 0.9537,
+        "recall": 0.9537,
+        "f1": 0.9537,
+        "map": 0.5429,
+        "diversity": 0.2756,
+        "novelty": 5.922
     },
     "content_based": {
-        "precision": 0.9652,
-        "recall": 0.96,
-        "f1": 0.9621
+        "precision": 0.9667,
+        "recall": 0.9667,
+        "f1": 0.9667,
+        "map": 0.6066,
+        "diversity": 0.2756,
+        "novelty": 5.953
     },
-    "timestamp": "2026-05-21T15:03:56.128872"
+    "timestamp": "2026-05-28T23:52:39.417830"
 }

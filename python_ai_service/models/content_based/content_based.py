@@ -39,11 +39,12 @@ def precompute_content_based(df: pd.DataFrame):
     
     return cosine_sim
 
-def recommend_content_based(df: pd.DataFrame, cosine_sim, location_id: int, top_n: int = 5, user_id: int = None, df_profiles: pd.DataFrame = None, exclude_ids: list = None):
+def recommend_content_based(df: pd.DataFrame, cosine_sim, location_id: int, top_n: int = 5, user_id: int = None, df_profiles: pd.DataFrame = None, exclude_ids: list = None, threshold: float = None):
     """
     Gợi ý dựa trên địa điểm (Item-to-Item) và Cá nhân hóa (User Profiling):
     1. Tìm các điểm tương đồng về nội dung.
     2. Nếu có Profile người dùng, ưu tiên các điểm thuộc danh mục họ yêu thích.
+    3. Áp dụng bộ lọc ngưỡng (threshold) để đảm bảo độ tương đồng tối thiểu.
     """
     if location_id not in df['location_id'].values:
         return []
@@ -84,7 +85,7 @@ def recommend_content_based(df: pd.DataFrame, cosine_sim, location_id: int, top_
         
         # Công thức: Final = Sim * (1 + Affinity/MaxAffinity) hoặc đơn giản là Sim * Affinity
         # Ở đây dùng Affinity (thường từ 1.0 - 2.0 hoặc tùy hệ thống)
-        final_score = raw_score * min(2.0, max(1.0, affinity))
+        final_score = min(1.0, raw_score * min(2.0, max(1.0, affinity)))
         
         if user_id is not None:
             print(f"DEBUG item={loc_row['location_id']}, cat={cat_id}, affinity={affinity}, raw={raw_score}, final={final_score}")
@@ -95,14 +96,20 @@ def recommend_content_based(df: pd.DataFrame, cosine_sim, location_id: int, top_
             "original_sim": round(raw_score, 3)
         })
 
-    # Sort lại sau khi boost
-    result = sorted(result, key=lambda x: x['score'], reverse=True)[:top_n]
-    
-    # Dynamic Scaling để điểm số trông "đẹp" hơn như yêu cầu trước (nhưng tính toán vẫn thực tế)
-    if result:
-        max_s = result[0]['score']
-        for r in result:
-            if max_s > 0:
-                r['score'] = round((r['score'] / max_s) * 0.98, 3)
+    # Sắp xếp kết quả sau khi boost
+    result = sorted(result, key=lambda x: x['score'], reverse=True)
+
+    # Áp dụng bộ lọc ngưỡng với UX Fallback phòng trường hợp ngưỡng quá cao trả về rỗng
+    if threshold is not None:
+        filtered_result = [r for r in result if r['score'] >= threshold]
+        if len(filtered_result) > 0:
+            # Trả về toàn bộ danh sách đạt ngưỡng (không bị giới hạn bởi top_n)
+            return filtered_result
+        else:
+            # Fallback về top_n tiêu chuẩn để tránh hiển thị rỗng ở giao diện người dùng
+            print(f"[INFO] Content-Based: Không có kết quả nào đạt ngưỡng {threshold}. Fallback về top_n={top_n}.")
+            return result[:top_n]
+    else:
+        return result[:top_n]
 
     return result

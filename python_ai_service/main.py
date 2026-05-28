@@ -85,11 +85,15 @@ def reload_models():
                 UNION ALL
                 SELECT user_id, location_id, 5 as rating FROM favorites
                 UNION ALL
+                SELECT user_id, location_id, 5 as rating FROM user_behavior_logs 
+                WHERE action_type = 'CLICK_BOOKING'
+                UNION ALL
                 SELECT user_id, location_id, 3 as rating FROM user_behavior_logs 
-                WHERE action_type IN ('CLICK_BOOKING', 'VIEW_DETAILS')
+                WHERE action_type IN ('VIEW_DETAILS', 'VIEW_MAP')
             ) as combined
             GROUP BY user_id, location_id
         """
+
         df_reviews = pd.read_sql(sql_interactions, engine)
         
         # Lấy thêm User Interest Profiles để hỗ trợ Content-Based cá nhân hóa
@@ -129,7 +133,7 @@ def background_enrich():
 
 
 @app.get("/recommend/collaborative")
-def get_collaborative_recommendation(user_id: int = None, top_n: int = 10):
+def get_collaborative_recommendation(user_id: int = None, top_n: int = 10, threshold: float = None):
     try:
         if user_id is None:
             return {"success": True, "data": [], "message": "Fallback"}
@@ -137,7 +141,17 @@ def get_collaborative_recommendation(user_id: int = None, top_n: int = 10):
         if df_reviews is None or df_reviews.empty:
             return {"success": True, "data": [], "message": "Fallback"}
             
-        recommendations = recommend_collaborative(df_reviews, user_item_matrix, item_corr, pop_fallback, user_id, top_n)
+        recommendations = recommend_collaborative(
+            df_reviews, 
+            user_item_matrix, 
+            item_corr, 
+            pop_fallback, 
+            user_id, 
+            top_n, 
+            threshold,
+            df_locations=df_locations,
+            df_profiles=df_profiles
+        )
         return {"success": True, "data": recommendations, "message": "OK"}
     except Exception as e:
         import traceback
@@ -146,7 +160,7 @@ def get_collaborative_recommendation(user_id: int = None, top_n: int = 10):
         return {"success": True, "data": [], "message": f"Fallback: {str(e)}"}
 
 @app.get("/recommend/content")
-def get_content_based_recommendation(location_id: int = None, user_id: int = None, top_n: int = 5):
+def get_content_based_recommendation(location_id: int = None, user_id: int = None, top_n: int = 5, threshold: float = None):
     try:
         if location_id is None:
             return {"success": True, "data": [], "message": "Fallback"}
@@ -168,7 +182,8 @@ def get_content_based_recommendation(location_id: int = None, user_id: int = Non
             top_n, 
             user_id, 
             df_profiles,
-            exclude_ids=exclude_ids
+            exclude_ids=exclude_ids,
+            threshold=threshold
         )
         return {"success": True, "data": recommendations, "message": "OK"}
     except Exception as e:
