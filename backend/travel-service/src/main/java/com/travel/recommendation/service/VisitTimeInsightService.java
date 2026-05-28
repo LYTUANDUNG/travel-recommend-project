@@ -28,35 +28,40 @@ public class VisitTimeInsightService {
     private final RestTemplate restTemplate;
 
     public VisitTimeInsight computeBestTime(Location location) {
-        Map<String, Double> scores = new HashMap<>();
-        scores.put("morning", 0.0);
-        scores.put("afternoon", 0.0);
-        scores.put("evening", 0.0);
+        try {
+            Map<String, Double> scores = new HashMap<>();
+            scores.put("morning", 0.0);
+            scores.put("afternoon", 0.0);
+            scores.put("evening", 0.0);
 
-        Map<String, Double> behavior = behaviorScore(location.getId());
-        Map<String, Double> weather = weatherScore(location.getLatitude(), location.getLongitude());
-        Map<String, Double> category = categoryScore(location.getCategory() != null ? location.getCategory().getName() : null);
+            Map<String, Double> behavior = behaviorScore(location.getId());
+            Map<String, Double> weather = weatherScore(location.getLatitude(), location.getLongitude());
+            Map<String, Double> category = categoryScore(location.getCategory() != null ? location.getCategory().getName() : null);
 
-        for (String slot : scores.keySet()) {
-            double weighted = behavior.getOrDefault(slot, 0.0) * 0.5
-                    + weather.getOrDefault(slot, 0.0) * 0.3
-                    + category.getOrDefault(slot, 0.0) * 0.2;
-            scores.put(slot, weighted);
+            for (String slot : scores.keySet()) {
+                double weighted = behavior.getOrDefault(slot, 0.0) * 0.5
+                        + weather.getOrDefault(slot, 0.0) * 0.3
+                        + category.getOrDefault(slot, 0.0) * 0.2;
+                scores.put(slot, weighted);
+            }
+
+            String bestSlot = scores.entrySet().stream()
+                    .max(Comparator.comparingDouble(Map.Entry::getValue))
+                    .map(Map.Entry::getKey)
+                    .orElse("afternoon");
+
+            String reason = String.format(
+                    "Behavior %.0f%%, weather %.0f%%, category %.0f%% favor %s",
+                    behavior.getOrDefault(bestSlot, 0.0) * 100.0,
+                    weather.getOrDefault(bestSlot, 0.0) * 100.0,
+                    category.getOrDefault(bestSlot, 0.0) * 100.0,
+                    humanize(bestSlot)
+            );
+            return new VisitTimeInsight(humanize(bestSlot), reason);
+        } catch (Exception e) {
+            log.error("Error computing visit time insight for location {}: {}", location.getId(), e.getMessage());
+            return new VisitTimeInsight("Afternoon (12:00-17:00)", "Dựa trên xu hướng tham quan phổ biến.");
         }
-
-        String bestSlot = scores.entrySet().stream()
-                .max(Comparator.comparingDouble(Map.Entry::getValue))
-                .map(Map.Entry::getKey)
-                .orElse("afternoon");
-
-        String reason = String.format(
-                "Behavior %.0f%%, weather %.0f%%, category %.0f%% favor %s",
-                behavior.getOrDefault(bestSlot, 0.0) * 100.0,
-                weather.getOrDefault(bestSlot, 0.0) * 100.0,
-                category.getOrDefault(bestSlot, 0.0) * 100.0,
-                humanize(bestSlot)
-        );
-        return new VisitTimeInsight(humanize(bestSlot), reason);
     }
 
     private Map<String, Double> behaviorScore(Long locationId) {
@@ -147,7 +152,7 @@ public class VisitTimeInsightService {
                 .filter(Number.class::isInstance)
                 .map(Number.class::cast)
                 .map(Number::doubleValue)
-                .toList();
+                .collect(java.util.stream.Collectors.toList());
     }
 
     private String toSlot(int hour) {

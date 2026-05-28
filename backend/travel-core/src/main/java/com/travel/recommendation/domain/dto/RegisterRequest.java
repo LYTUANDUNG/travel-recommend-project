@@ -25,4 +25,5 @@ public class RegisterRequest {
 
     private Integer birth_year;
     private String province;
+    private java.util.List<String> interests;
 }

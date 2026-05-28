@@ -44,7 +44,7 @@ export default {
         'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
       },
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
+        sans: ['Outfit', 'sans-serif'],
         serif: ['Inter', 'sans-serif'],
       },
     },

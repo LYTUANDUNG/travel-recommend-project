@@ -1,10 +1,13 @@
 package com.travel.recommendation.adapter.out.persistence;
 
 import com.travel.recommendation.domain.entity.UserInterestProfile;
-import com.travel.recommendation.domain.entity.UserInterestProfileId;
 import org.springframework.data.jpa.repository.JpaRepository;
-import java.util.List;
+import org.springframework.stereotype.Repository;
 
-public interface UserInterestProfileRepository extends JpaRepository<UserInterestProfile, UserInterestProfileId> {
-    List<UserInterestProfile> findByIdUserId(Long userId);
+import java.util.Optional;
+
+@Repository
+public interface UserInterestProfileRepository extends JpaRepository<UserInterestProfile, Long> {
+    java.util.Optional<UserInterestProfile> findByUserIdAndCategoryId(Long userId, Long categoryId);
+    java.util.List<UserInterestProfile> findByUserId(Long userId);
 }

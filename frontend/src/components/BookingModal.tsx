@@ -33,6 +33,11 @@ export default function BookingModal({ isOpen, onClose, locationId, locationName
             const res = await api.visit.requestVisit(user.user_id, locationId);
             if (res.success) {
                 setStep(2);
+                api.behavior.logAction({
+                    user_id: user.user_id,
+                    location_id: locationId,
+                    action: 'CLICK_BOOKING'
+                }).catch(() => {});
             } else {
                 alert(res.message || "Có lỗi xảy ra khi thêm lịch trình.");
             }

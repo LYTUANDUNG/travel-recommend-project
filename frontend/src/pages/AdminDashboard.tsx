@@ -38,7 +38,7 @@ export default function AdminDashboard() {
     ];
 
     const colorClasses: Record<string, string> = {
-        primary: 'from-primary-500 to-primary-600 shadow-primary-200',
+        primary: 'from-orange-500 to-orange-600 shadow-orange-200',
         emerald: 'from-emerald-400 to-teal-600 shadow-emerald-200',
         blue: 'from-blue-500 to-cyan-600 shadow-blue-200',
         orange: 'from-orange-400 to-amber-600 shadow-orange-200',
@@ -49,7 +49,7 @@ export default function AdminDashboard() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
                 <div className="animate-in slide-in-from-left duration-1000">
                     <h1 className="text-5xl font-serif font-black text-slate-950 dark:text-white tracking-tighter leading-none mb-4">
-                        Discovery <br/><span className="text-primary-600">Control Center.</span>
+                        Discovery <br/><span className="text-orange-600">Control Center.</span>
                     </h1>
                     <p className="text-slate-500 dark:text-slate-400 font-medium text-lg leading-relaxed max-w-xl">
                         Chào buổi sáng, Quản trị viên! Hôm nay là một ngày tuyệt vời để tối ưu hóa những trải nghiệm khám phá cho người dùng.
@@ -99,7 +99,7 @@ export default function AdminDashboard() {
                         </div>
                         <div className="flex items-center gap-4">
                             <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-full bg-primary-500" />
+                                <div className="w-3 h-3 rounded-full bg-orange-500" />
                                 <span className="text-xs font-bold text-slate-500">Xem địa điểm</span>
                             </div>
                             <div className="flex items-center gap-2">
@@ -114,8 +114,8 @@ export default function AdminDashboard() {
                             <AreaChart data={chartData}>
                                 <defs>
                                     <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
-                                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                                        <stop offset="5%" stopColor="#f97316" stopOpacity={0.1}/>
+                                        <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
                                     </linearGradient>
                                     <linearGradient id="colorSearches" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
@@ -145,7 +145,7 @@ export default function AdminDashboard() {
                                     }}
                                     itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
                                 />
-                                <Area type="monotone" dataKey="views" stroke="#6366f1" strokeWidth={4} fillOpacity={1} fill="url(#colorViews)" />
+                                <Area type="monotone" dataKey="views" stroke="#f97316" strokeWidth={4} fillOpacity={1} fill="url(#colorViews)" />
                                 <Area type="monotone" dataKey="searches" stroke="#10b981" strokeWidth={4} fillOpacity={1} fill="url(#colorSearches)" />
                             </AreaChart>
                         </ResponsiveContainer>
@@ -154,8 +154,8 @@ export default function AdminDashboard() {
 
                 <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-8 rounded-[2.5rem] text-white shadow-xl relative overflow-hidden">
                     <div className="relative z-10 h-full flex flex-col">
-                        <div className="w-14 h-14 rounded-2xl bg-primary-500/20 backdrop-blur-md flex items-center justify-center mb-6 border border-primary-500/30">
-                            <BarChart2 className="w-7 h-7 text-primary-400" />
+                        <div className="w-14 h-14 rounded-2xl bg-orange-500/20 backdrop-blur-md flex items-center justify-center mb-6 border border-orange-500/30">
+                            <BarChart2 className="w-7 h-7 text-orange-400" />
                         </div>
                         <h3 className="text-2xl font-black mb-2">Academic Evaluation</h3>
                         <p className="text-slate-400 font-medium mb-8 text-sm">Chỉ số hiệu năng của thuật toán Recommendation (Hybrid Content-Based).</p>
@@ -165,7 +165,7 @@ export default function AdminDashboard() {
                                 <p className="text-[10px] uppercase font-bold text-slate-500 mb-3 tracking-widest">Precision @ 5 (Độ chính xác)</p>
                                 <div className="flex items-center gap-3">
                                     <div className="flex-1 h-3 bg-slate-700 rounded-full overflow-hidden">
-                                        <div className="w-[88%] h-full bg-primary-500 rounded-full" />
+                                        <div className="w-[88%] h-full bg-orange-500 rounded-full" />
                                     </div>
                                     <span className="text-sm font-black">88%</span>
                                 </div>
@@ -182,7 +182,7 @@ export default function AdminDashboard() {
                             </div>
                             
                             <div className="pt-4">
-                                <p className="text-[10px] uppercase font-bold text-primary-500 mb-2">Trọng số thuật toán (Weights)</p>
+                                <p className="text-[10px] uppercase font-bold text-orange-500 mb-2">Trọng số thuật toán (Weights)</p>
                                 <div className="flex gap-2">
                                     <span className="px-3 py-1 bg-white/5 rounded-full text-[10px] font-bold">Content: 0.6</span>
                                     <span className="px-3 py-1 bg-white/5 rounded-full text-[10px] font-bold">Dist: 0.3</span>
@@ -196,8 +196,8 @@ export default function AdminDashboard() {
 
             {/* Management Shortcuts */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <button onClick={() => window.location.href='/admin/users'} className="flex items-center gap-6 p-8 bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 hover:border-primary-500 transition-all text-left group airy-shadow">
-                    <div className="w-16 h-16 rounded-2xl bg-primary-50 dark:bg-primary-900/30 text-primary-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <button onClick={() => window.location.href='/admin/users'} className="flex items-center gap-6 p-8 bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 hover:border-orange-500 transition-all text-left group airy-shadow">
+                    <div className="w-16 h-16 rounded-2xl bg-orange-50 dark:bg-orange-900/30 text-orange-600 flex items-center justify-center group-hover:scale-110 transition-transform">
                         <Users className="w-8 h-8" />
                     </div>
                     <div>

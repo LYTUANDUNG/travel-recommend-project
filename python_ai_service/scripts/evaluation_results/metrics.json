@@ -1,0 +1,11 @@
+{
+    "collaborative": {
+        "mae": 3.2467,
+        "rmse": 4.0861,
+        "precision": 0.0488
+    },
+    "content_based": {
+        "precision": 0.0341
+    },
+    "timestamp": "2026-05-08T10:58:27.479709"
+}

@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +24,8 @@ public class TripService {
     private final TripLocationRepository tripLocationRepository;
     private final UserRepository userRepository;
     private final LocationRepository locationRepository;
+
+    public record TripLocationSyncItem(Long locationId, Integer day, Integer order) {}
 
     public List<Trip> getByUser(Long userId) {
         return tripRepository.findByUserId(userId);
@@ -53,6 +57,13 @@ public class TripService {
 
     @Transactional
     public void syncTrip(Long userId, List<Long> locationIds) {
+        syncTripItems(userId, locationIds.stream()
+                .map(id -> new TripLocationSyncItem(id, 1, null))
+                .collect(Collectors.toList()));
+    }
+
+    @Transactional
+    public void syncTripItems(Long userId, List<TripLocationSyncItem> items) {
         User user = userRepository.findById(userId).orElseThrow();
         
         // Find or create a default trip for the user
@@ -68,20 +79,29 @@ public class TripService {
             trip = trips.get(0);
         }
         
-        // Clear existing locations
         tripLocationRepository.deleteByTripId(trip.getId());
-        
-        // Add new locations in order
-        for (int i = 0; i < locationIds.size(); i++) {
-            Long locId = locationIds.get(i);
-            Location loc = locationRepository.findById(locId).orElseThrow();
-            TripLocation item = TripLocation.builder()
+
+        List<Long> locationIds = items.stream()
+                .map(TripLocationSyncItem::locationId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        Map<Long, Location> locationById = locationRepository.findAllById(locationIds).stream()
+                .collect(Collectors.toMap(Location::getId, loc -> loc));
+
+        List<TripLocation> tripLocations = new java.util.ArrayList<>();
+        for (int i = 0; i < items.size(); i++) {
+            TripLocationSyncItem syncItem = items.get(i);
+            Location loc = locationById.get(syncItem.locationId());
+            if (loc == null) continue;
+
+            tripLocations.add(TripLocation.builder()
                     .trip(trip)
                     .location(loc)
-                    .day(1)
-                    .sortOrder(i)
-                    .build();
-            tripLocationRepository.save(item);
+                    .day(syncItem.day() != null ? syncItem.day() : 1)
+                    .sortOrder(syncItem.order() != null ? syncItem.order() : i)
+                    .build());
         }
+        tripLocationRepository.saveAll(tripLocations);
     }
 }

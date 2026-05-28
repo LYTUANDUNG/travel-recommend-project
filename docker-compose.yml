@@ -12,7 +12,7 @@ services:
     ports:
       - "3307:3306"
     volumes:
-      - ./backend/db_init.sql:/docker-entrypoint-initdb.d/db_init.sql
+      - ./backend/database:/docker-entrypoint-initdb.d
     command: --innodb-ft-min-token-size=1 --innodb-ft-enable-stopword=OFF
     restart: always
 

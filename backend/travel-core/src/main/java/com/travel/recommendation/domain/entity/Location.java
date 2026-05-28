@@ -37,13 +37,11 @@ public class Location extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(name = "preview_experience", columnDefinition = "TEXT")
-    private String previewExperience;
+
 
     private String address;
 
-    @Column(length = 100)
-    private String ward;
+
 
     @Column(length = 100)
     private String district;

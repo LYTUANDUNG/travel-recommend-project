@@ -16,7 +16,7 @@ interface Props {
 }
 
 // Custom Icon helper
-const createNumberedIcon = (number: number, color: string = '#ec4899') => {
+const createNumberedIcon = (number: number, color: string = '#f97316') => {
   return L.divIcon({
     html: `
       <div style="
@@ -134,7 +134,7 @@ export default function MapView({
     const validLocs = locations.filter(l => isValidCoords(l.latitude, l.longitude));
     validLocs.forEach((loc, idx) => {
         const marker = L.marker([Number(loc.latitude), Number(loc.longitude)], {
-            icon: showOrder ? createNumberedIcon(idx + 1) : L.divIcon({ className: 'default-marker', html: '<div style="background:#ec4899;width:12px;height:12px;border-radius:50%;border:2px solid white"></div>'})
+            icon: showOrder ? createNumberedIcon(idx + 1) : L.divIcon({ className: 'default-marker', html: '<div style="background:#f97316;width:12px;height:12px;border-radius:50%;border:2px solid white"></div>'})
         });
         marker.bindPopup(`<div class="p-2"><b>${loc.name}</b><p class="text-xs mt-1">${loc.address || ''}</p></div>`);
         markersGroup.addLayer(marker);
@@ -147,7 +147,7 @@ export default function MapView({
             .map((c: any) => [Number(c[1]), Number(c[0])]);
         
         if (positions.length > 0) {
-            routeRef.current = L.polyline(positions, { color: '#ec4899', weight: 6, opacity: 0.8 }).addTo(map);
+            routeRef.current = L.polyline(positions, { color: '#f97316', weight: 6, opacity: 0.8 }).addTo(map);
         }
     }
 

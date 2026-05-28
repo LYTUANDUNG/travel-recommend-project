@@ -39,9 +39,12 @@ export default function Header() {
     >
       <div className="container mx-auto px-6 max-w-7xl">
         <div className="flex items-center justify-between">
-          <Link to="/" className="flex items-center">
-            <span className="text-3xl font-sans font-bold text-[#0070F3] lowercase tracking-tight">
-              travel
+          <Link to="/" className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#f97316] to-[#f59e0b] flex items-center justify-center text-white shadow-md shadow-orange-500/20 font-black">
+              V
+            </div>
+            <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+              Vina<span className="text-[#f97316]">Travel</span>
             </span>
           </Link>
 
@@ -53,12 +56,12 @@ export default function Header() {
                 to={link.path}
                 className={({ isActive }) => cn(
                   "text-[14px] font-semibold transition-all relative flex items-center gap-2",
-                  isActive ? "text-[#0070F3]" : "text-slate-800 hover:text-[#0070F3] dark:text-slate-200 dark:hover:text-white"
+                  isActive ? "text-[#f97316]" : "text-slate-800 hover:text-[#f97316] dark:text-slate-200 dark:hover:text-white"
                 )}
               >
                 {link.name}
                 {link.name === 'Lộ trình' && tripItems.length > 0 && (
-                   <span className="absolute -top-2 -right-3 w-4 h-4 bg-[#0070F3] text-white rounded-full flex items-center justify-center text-[9px] font-bold">
+                   <span className="absolute -top-2 -right-3 w-4 h-4 bg-[#f97316] text-white rounded-full flex items-center justify-center text-[9px] font-bold">
                       {tripItems.length}
                    </span>
                 )}
@@ -98,7 +101,7 @@ export default function Header() {
                 </button>
               </div>
             ) : (
-              <Link to="/login" className="px-8 py-3 bg-[#005bb5] hover:bg-[#004494] text-white rounded-full text-[14px] font-semibold transition-all">
+              <Link to="/login" className="px-8 py-3 bg-[#f97316] hover:bg-[#ea580c] text-white rounded-full text-[14px] font-semibold transition-all">
                 Đăng nhập
               </Link>
             )}
@@ -122,14 +125,14 @@ export default function Header() {
               onClick={() => setIsMobileMenuOpen(false)}
               className={({ isActive }) => cn(
                 "px-4 py-3 rounded-xl text-sm font-semibold transition-colors",
-                isActive ? "bg-blue-50 dark:bg-blue-900/20 text-[#0070F3]" : "text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+                isActive ? "bg-orange-50 dark:bg-orange-950/20 text-[#f97316]" : "text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
               )}
             >
               {link.name}
             </NavLink>
           ))}
           {!isAuthenticated && (
-             <Link to="/login" onClick={() => setIsMobileMenuOpen(false)} className="px-4 py-3 bg-[#005bb5] text-white rounded-xl text-sm font-semibold text-center mt-2">
+             <Link to="/login" onClick={() => setIsMobileMenuOpen(false)} className="px-4 py-3 bg-[#f97316] text-white rounded-xl text-sm font-semibold text-center mt-2">
                 Đăng nhập
              </Link>
           )}

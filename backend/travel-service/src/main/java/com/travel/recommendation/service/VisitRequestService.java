@@ -57,8 +57,15 @@ public class VisitRequestService {
     @Transactional(readOnly = true)
     public List<VisitRequestDto> getAllRequests() {
         return visitRequestRepository.findAll().stream()
-                .map(this::mapToDto)
+                .map(v -> mapToDto(v, false))
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<VisitRequestDto> getPaginatedRequests(int page, int size) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size, org.springframework.data.domain.Sort.by("id").descending());
+        return visitRequestRepository.findAllPaginated(pageable)
+                .map(v -> mapToDto(v, false));
     }
 
     @Transactional(readOnly = true)
@@ -69,6 +76,10 @@ public class VisitRequestService {
     }
 
     public VisitRequestDto mapToDto(VisitRequest request) {
+        return mapToDto(request, true);
+    }
+
+    public VisitRequestDto mapToDto(VisitRequest request, boolean includeInsight) {
         return VisitRequestDto.builder()
                 .id(request.getId())
                 .userId(request.getUser() != null ? request.getUser().getId() : null)
@@ -78,7 +89,7 @@ public class VisitRequestService {
                 .status(request.getStatus() != null ? request.getStatus().name() : null)
                 .visitDate(request.getVisitDate())
                 .createdAt(request.getCreatedAt())
-                .location(request.getLocation() != null ? locationService.mapToResponse(request.getLocation()) : null)
+                .location(request.getLocation() != null ? (includeInsight ? locationService.mapToResponse(request.getLocation()) : null) : null)
                 .build();
     }
 
@@ -86,5 +97,15 @@ public class VisitRequestService {
     public boolean canUserReview(Long userId, Long locationId) {
         return visitRequestRepository.existsByUser_IdAndLocation_IdAndStatusIn(
                 userId, locationId, java.util.Arrays.asList(VisitRequest.VisitStatus.APPROVED, VisitRequest.VisitStatus.COMPLETED));
+    }
+
+    @Transactional
+    public void completeApprovedVisitAfterReview(Long userId, Long locationId) {
+        visitRequestRepository.findFirstByUser_IdAndLocation_IdAndStatusOrderByCreatedAtDesc(
+                userId, locationId, VisitRequest.VisitStatus.APPROVED)
+                .ifPresent(request -> {
+                    request.setStatus(VisitRequest.VisitStatus.COMPLETED);
+                    visitRequestRepository.save(request);
+                });
     }
 }

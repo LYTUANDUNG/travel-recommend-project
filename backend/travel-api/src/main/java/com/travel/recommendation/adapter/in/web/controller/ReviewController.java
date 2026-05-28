@@ -35,6 +35,19 @@ public class ReviewController {
         return ResponseEntity.ok(ApiResponse.success(reviewService.getAllReviews()));
     }
 
+    @GetMapping("/paginated")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<ReviewDto>>> getPaginatedReviews(
+            @RequestParam(required = false) String query,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size, org.springframework.data.domain.Sort.by("id").descending());
+        return ResponseEntity.ok(ApiResponse.success(
+            reviewService.findPaginated(query, pageable),
+            "Reviews fetched successfully"
+        ));
+    }
+
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ReviewDto>> updateReview(@PathVariable Long id, @RequestBody ReviewDto dto) {

@@ -27,6 +27,13 @@ tasks.withType(JavaCompile) {
 }
 	}
 
+	configurations.all {
+		resolutionStrategy {
+			force 'net.bytebuddy:byte-buddy:1.15.11'
+			force 'net.bytebuddy:byte-buddy-agent:1.15.11'
+		}
+	}
+
 	dependencyManagement {
 		imports {
 			mavenBom org.springframework.boot.gradle.plugin.SpringBootPlugin.BOM_COORDINATES
@@ -45,9 +52,14 @@ tasks.withType(JavaCompile) {
 		implementation 'org.hibernate.common:hibernate-commons-annotations:7.0.3.Final'
 		implementation 'com.mysql:mysql-connector-j:9.1.0'
 		implementation 'org.springframework.boot:spring-boot-starter-mail'
+
+		// Explicit modern ByteBuddy dependencies
+		implementation 'net.bytebuddy:byte-buddy:1.15.11'
+		implementation 'net.bytebuddy:byte-buddy-agent:1.15.11'
 	}
 
 	tasks.named('test') {
 		useJUnitPlatform()
 	}
 }
+

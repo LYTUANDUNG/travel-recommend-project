@@ -52,11 +52,14 @@ export const useTripStore = create<TripStore>()(
       
       syncToBackend: async (userId: number) => {
         const { tripItems } = get();
-        // Send only location IDs to the backend
-        const locationIds = tripItems.map(item => item.location_id);
+        const payload = tripItems.map((item, index) => ({
+          location_id: item.location_id,
+          day: Number((item.visit_date || 'Ngày 1').replace(/\D/g, '')) || 1,
+          order_index: item.order_index ?? index
+        }));
         
         try {
-          await api.client.post(`/trips/sync?userId=${userId}`, locationIds);
+          await api.client.post(`/trips/sync?userId=${userId}`, payload);
         } catch (error) {
           console.error("Sync failed", error);
         }
@@ -72,7 +75,8 @@ export const useTripStore = create<TripStore>()(
               location_id: tl.location.location_id,
               name: tl.location.name,
               thumbnail_url: tl.location.thumbnail_url || (tl.location.images?.[0]),
-              order_index: tl.sortOrder || idx
+              order_index: tl.sortOrder || idx,
+              visit_date: `Ngày ${tl.day || 1}`
             }));
             set({ tripItems: items });
           }

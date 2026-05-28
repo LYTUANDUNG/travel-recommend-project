@@ -26,4 +26,5 @@ public class UpdateCurrentUserRequest {
     private Integer birthYear;
 
     private String nationality;
+    private String interests;
 }

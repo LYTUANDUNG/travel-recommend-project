@@ -20,10 +20,11 @@ def precompute_content_based(df: pd.DataFrame):
     """
     
     # Kết hợp các đặc trưng (Features) để tạo tập ngữ liệu (Corpus)
-    df['combined_features'] = df['name'].fillna('').astype(str) + " " + \
+    # Tăng trọng số (Boosting) cho category và tags bằng cách lặp lại chúng
+    df['combined_features'] = (df['name'].fillna('').astype(str) + " ") * 2 + \
                               df['description'].fillna('').astype(str) + " " + \
-                              df['category_id'].fillna('').astype(str) + " " + \
-                              df['tags'].fillna('').astype(str)
+                              (df['category_name'].fillna('').astype(str) + " ") * 5 + \
+                              (df['tags'].fillna('').astype(str) + " ") * 3
     
     corpus = df['combined_features'].fillna('').astype(str).tolist()
     
@@ -38,10 +39,11 @@ def precompute_content_based(df: pd.DataFrame):
     
     return cosine_sim
 
-def recommend_content_based(df: pd.DataFrame, cosine_sim, location_id: int, top_n: int = 5):
+def recommend_content_based(df: pd.DataFrame, cosine_sim, location_id: int, top_n: int = 5, user_id: int = None, df_profiles: pd.DataFrame = None, exclude_ids: list = None):
     """
-    Gợi ý dựa trên địa điểm cụ thể (Item-to-Item Content-Based):
-    Tìm các địa điểm có vector TF-IDF gần nhất với địa điểm hiện tại.
+    Gợi ý dựa trên địa điểm (Item-to-Item) và Cá nhân hóa (User Profiling):
+    1. Tìm các điểm tương đồng về nội dung.
+    2. Nếu có Profile người dùng, ưu tiên các điểm thuộc danh mục họ yêu thích.
     """
     if location_id not in df['location_id'].values:
         return []
@@ -55,16 +57,52 @@ def recommend_content_based(df: pd.DataFrame, cosine_sim, location_id: int, top_
     # Sắp xếp giảm dần theo score
     sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
     
-    # Loại bỏ chính nó và lấy top_n
-    sim_scores = [score for score in sim_scores if score[0] != idx][:top_n]
+    # Loại bỏ chính nó
+    sim_scores = [score for score in sim_scores if score[0] != idx]
     
+    # Loại bỏ các địa điểm đã đánh giá / tương tác để tránh trùng lặp
+    if exclude_ids is not None:
+        exclude_set = set(int(x) for x in exclude_ids)
+        sim_scores = [score for score in sim_scores if int(df.iloc[score[0]]['location_id']) not in exclude_set]
+    
+    # Lấy thông tin Profile nếu có
+    user_affinity = {}
+    if user_id is not None and df_profiles is not None:
+        user_p = df_profiles[df_profiles['user_id'] == int(user_id)]
+        for _, p in user_p.iterrows():
+            user_affinity[int(p['category_id'])] = float(p['affinity_score'])
+
     result = []
     for score in sim_scores:
         loc_index = score[0]
-        # Chuyển đổi điểm đo (Similarity) sang phần trăm hiển thị
-        adjusted_score = 0.55 + (float(score[1]) * 0.44)
+        loc_row = df.iloc[loc_index]
+        raw_score = float(score[1])
+        
+        # Personalized Boost: Nếu thuộc danh mục user thích, nhân thêm trọng số
+        cat_id = int(loc_row['category_id'])
+        affinity = user_affinity.get(cat_id, 1.0) # Mặc định là 1.0 (không đổi)
+        
+        # Công thức: Final = Sim * (1 + Affinity/MaxAffinity) hoặc đơn giản là Sim * Affinity
+        # Ở đây dùng Affinity (thường từ 1.0 - 2.0 hoặc tùy hệ thống)
+        final_score = raw_score * min(2.0, max(1.0, affinity))
+        
+        if user_id is not None:
+            print(f"DEBUG item={loc_row['location_id']}, cat={cat_id}, affinity={affinity}, raw={raw_score}, final={final_score}")
+        
         result.append({
-            "placeId": int(df.iloc[loc_index]['location_id']),
-            "score": round(adjusted_score, 2)
+            "placeId": int(loc_row['location_id']),
+            "score": round(final_score, 3),
+            "original_sim": round(raw_score, 3)
         })
+
+    # Sort lại sau khi boost
+    result = sorted(result, key=lambda x: x['score'], reverse=True)[:top_n]
+    
+    # Dynamic Scaling để điểm số trông "đẹp" hơn như yêu cầu trước (nhưng tính toán vẫn thực tế)
+    if result:
+        max_s = result[0]['score']
+        for r in result:
+            if max_s > 0:
+                r['score'] = round((r['score'] / max_s) * 0.98, 3)
+
     return result

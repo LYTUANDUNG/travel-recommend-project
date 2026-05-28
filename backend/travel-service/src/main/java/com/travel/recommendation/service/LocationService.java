@@ -13,6 +13,7 @@ import com.travel.recommendation.adapter.out.persistence.LocationTagRepository;
 import com.travel.recommendation.adapter.out.persistence.TagRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,7 +29,9 @@ public class LocationService {
     private final TagRepository tagRepository;
     private final LocationTagRepository locationTagRepository;
     private final CategoryRepository categoryRepository;
-    private final com.travel.recommendation.adapter.out.persistence.ReviewRepository reviewRepository;
+    private final @Lazy com.travel.recommendation.adapter.out.persistence.ReviewRepository reviewRepository;
+    private final @Lazy com.travel.recommendation.adapter.out.persistence.UserInterestProfileRepository profileRepository;
+    private final @Lazy com.travel.recommendation.adapter.out.persistence.UserRepository userRepository;
     private final VisitTimeInsightService visitTimeInsightService;
     private final ObjectMapper objectMapper;
 
@@ -65,6 +68,21 @@ public class LocationService {
         return locationRepository.findById(id).map(this::mapToResponse);
     }
 
+    @Transactional(readOnly = true)
+    public List<LocationResponse> getLocationsByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return List.of();
+
+        java.util.Map<Long, Integer> requestedOrder = new java.util.HashMap<>();
+        for (int i = 0; i < ids.size(); i++) {
+            requestedOrder.putIfAbsent(ids.get(i), i);
+        }
+
+        return locationRepository.findAllById(ids).stream()
+                .sorted(java.util.Comparator.comparingInt(loc -> requestedOrder.getOrDefault(loc.getId(), Integer.MAX_VALUE)))
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
     @Transactional
     @CacheEvict(value = {"userRecommendations", "guestRecommendations"}, allEntries = true)
     public LocationResponse saveLocation(LocationRequest request) {
@@ -78,7 +96,7 @@ public class LocationService {
                 .name(request.getName())
                 .description(request.getDescription())
                 .address(request.getAddress())
-                .ward(request.getWard())
+
                 .district(request.getDistrict())
                 .province(request.getProvince())
                 .latitude(request.getLatitude())
@@ -129,7 +147,7 @@ public class LocationService {
         location.setName(request.getName());
         location.setDescription(request.getDescription());
         location.setAddress(request.getAddress());
-        location.setWard(request.getWard());
+
         location.setDistrict(request.getDistrict());
         location.setProvince(request.getProvince());
         location.setLatitude(request.getLatitude());
@@ -175,14 +193,57 @@ public class LocationService {
 
     @Transactional(readOnly = true)
     public List<LocationResponse> getRecommendations(Long userId, Double lat, Double lng) {
-        // Simple implementation: iflat/lng provided, use spatial query, else just some locations
-        List<Location> locations;
-        if (lat != null && lng != null) {
-            locations = locationRepository.findLocationsWithinRadius(lat, lng, 50000.0); // 50km
-        } else {
-            locations = locationRepository.findAll();
+        List<Location> allLocations = (lat != null && lng != null) 
+                ? locationRepository.findLocationsWithinRadius(lat, lng, 50000.0) 
+                : locationRepository.findAll();
+
+        if (allLocations.isEmpty()) return List.of();
+
+        // 1. Fetch User Data
+        final List<com.travel.recommendation.domain.entity.UserInterestProfile> profiles = 
+                userId != null ? profileRepository.findByUserId(userId) : java.util.Collections.emptyList();
+        
+        final String userInterests = userId != null 
+                ? userRepository.findById(userId).map(com.travel.recommendation.domain.entity.User::getInterests).orElse(null) 
+                : null;
+
+        // 2. Score and Sort
+        return allLocations.stream()
+                .map(loc -> {
+                    LocationResponse res = mapToResponse(loc);
+                    double score = calculateMatchScore(loc, profiles, userInterests);
+                    res.setMatchScore(score);
+                    return res;
+                })
+                .sorted(java.util.Comparator.comparingDouble(LocationResponse::getMatchScore).reversed())
+                .limit(20)
+                .collect(Collectors.toList());
+    }
+
+    private double calculateMatchScore(Location loc, List<com.travel.recommendation.domain.entity.UserInterestProfile> profiles, String userInterests) {
+        double score = 0.0;
+        
+        // A. Behavior Score (Weight 0.7)
+        if (loc.getCategory() != null) {
+            double behaviorScore = profiles.stream()
+                    .filter(p -> p.getCategory().getId().equals(loc.getCategory().getId()))
+                    .mapToDouble(com.travel.recommendation.domain.entity.UserInterestProfile::getAffinityScore)
+                    .findFirst()
+                    .orElse(0.0);
+            score += behaviorScore * 0.7;
         }
-        return locations.stream().map(this::mapToResponse).collect(Collectors.toList());
+
+        // B. Declared Interest Score (Weight 0.3)
+        if (userInterests != null && loc.getCategory() != null) {
+            if (userInterests.toLowerCase().contains(loc.getCategory().getName().toLowerCase())) {
+                score += 5.0 * 0.3; // Boost if category matches declared interests
+            }
+        }
+
+        // C. Rating Bonus (Small boost)
+        score += (loc.getAverageRating() / 5.0) * 0.5;
+
+        return score;
     }
 
     public LocationResponse mapToResponse(Location loc) {
@@ -192,7 +253,7 @@ public class LocationService {
                 .name(loc.getName())
                 .description(loc.getDescription())
                 .address(loc.getAddress())
-                .ward(loc.getWard())
+
                 .district(loc.getDistrict())
                 .province(loc.getProvince())
                 .latitude(loc.getLatitude())
@@ -206,6 +267,7 @@ public class LocationService {
                 .thumbnailUrl(loc.getThumbnailUrl())
                 .averageRating(loc.getAverageRating())
                 .totalReviews(loc.getTotalReviews())
+                .viewCount(loc.getViewCount())
                 .images(deserializeImages(loc.getImagesJson()))
                 .tags(loc.getLocationTags() != null ? loc.getLocationTags().stream()
                         .map(lt -> LocationResponse.TagResponse.builder()

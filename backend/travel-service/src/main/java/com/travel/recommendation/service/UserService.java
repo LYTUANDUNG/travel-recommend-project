@@ -8,6 +8,7 @@ import com.travel.recommendation.adapter.out.persistence.CategoryRepository;
 import com.travel.recommendation.adapter.out.persistence.PasswordResetTokenRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,7 +24,7 @@ public class UserService {
     private final UserInterestProfileRepository userInterestProfileRepository;
     private final CategoryRepository categoryRepository;
     private final PasswordResetTokenRepository tokenRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final @Lazy PasswordEncoder passwordEncoder;
 
     @Transactional(readOnly = true)
     public Optional<User> findByEmail(String email) {
@@ -38,6 +39,11 @@ public class UserService {
     @Transactional(readOnly = true)
     public java.util.List<User> findAll() {
         return userRepository.findAll();
+    }
+
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<User> findPaginated(String query, org.springframework.data.domain.Pageable pageable) {
+        return userRepository.searchPaginated(query, pageable);
     }
 
     @Transactional
@@ -104,7 +110,8 @@ public class UserService {
             String avatarUrl,
             User.Gender gender,
             Integer birthYear,
-            String nationality) {
+            String nationality,
+            String interests) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -114,6 +121,7 @@ public class UserService {
         if (gender != null) user.setGender(gender);
         if (birthYear != null) user.setBirthYear(birthYear);
         if (nationality != null) user.setNationality(nationality);
+        if (interests != null) user.setInterests(interests);
 
         return userRepository.save(user);
     }
@@ -123,7 +131,7 @@ public class UserService {
         User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
         
         // Delete old
-        List<com.travel.recommendation.domain.entity.UserInterestProfile> oldProfiles = userInterestProfileRepository.findByIdUserId(userId);
+        List<com.travel.recommendation.domain.entity.UserInterestProfile> oldProfiles = userInterestProfileRepository.findByUserId(userId);
         userInterestProfileRepository.deleteAll(oldProfiles);
         
         // Setup new
@@ -144,7 +152,7 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public List<Long> getUserInterestIds(Long userId) {
-        return userInterestProfileRepository.findByIdUserId(userId).stream()
+        return userInterestProfileRepository.findByUserId(userId).stream()
                 .map(p -> p.getCategory().getId())
                 .collect(java.util.stream.Collectors.toList());
     }

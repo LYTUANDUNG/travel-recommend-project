@@ -34,6 +34,20 @@ public class UserController {
         ));
     }
 
+    @GetMapping("/paginated")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<UserDto>>> getPaginatedUsers(
+            @RequestParam(required = false) String query,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        return ResponseEntity.ok(ApiResponse.success(
+            userService.findPaginated(query, pageable).map(this::mapToDto),
+            "Users fetched successfully"
+        ));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<UserDto>> getUserProfile(@PathVariable Long id) {
         return userService.findById(id)
@@ -62,7 +76,8 @@ public class UserController {
                             request.getAvatarUrl(),
                             request.getGender(),
                             request.getBirthYear(),
-                            request.getNationality()
+                            request.getNationality(),
+                            request.getInterests()
                     );
                     return ResponseEntity
                             .ok(ApiResponse.success(mapToDto(updatedUser), "Profile updated successfully"));
@@ -87,7 +102,8 @@ public class UserController {
                 request.getAvatarUrl(),
                 gender,
                 request.getBirthYear(),
-                request.getNationality()
+                request.getNationality(),
+                request.getInterests()
         );
 
         return ResponseEntity.ok(ApiResponse.success(mapToDto(updatedUser), "Profile updated successfully"));
@@ -163,6 +179,22 @@ public class UserController {
         }
     }
 
+    @GetMapping("/{id}/avatar")
+    public ResponseEntity<?> getAvatar(@PathVariable Long id) {
+        return userService.findById(id)
+                .map(user -> {
+                    String avatarUrl = user.getAvatarUrl();
+                    if (avatarUrl == null || avatarUrl.isBlank()) {
+                        return ResponseEntity.notFound().build();
+                    }
+                    // Redirect to the actual image URL
+                    return ResponseEntity.status(302)
+                            .location(java.net.URI.create(avatarUrl))
+                            .build();
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @PostMapping("/{id}/interests")
     public ResponseEntity<ApiResponse<Void>> saveUserInterests(@PathVariable Long id, @RequestBody List<Long> categoryIds) {
         userService.saveUserInterests(id, categoryIds);
@@ -189,12 +221,20 @@ public class UserController {
                 .birth_year(user.getBirthYear())
                 .nationality(user.getNationality())
                 .is_active(user.getIsActive())
-                .interests(Collections.emptyList())
+                .interests(user.getInterests() != null ? java.util.Arrays.asList(user.getInterests().split(",")) : java.util.Collections.emptyList())
                 .build();
     }
 
     private Long getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        return Long.valueOf(authentication.getName());
+        String name = authentication.getName();
+        try {
+            return Long.valueOf(name);
+        } catch (NumberFormatException e) {
+            // If name is not a number (e.g. username), find user by username or email
+            return userService.findByEmail(name)
+                    .map(User::getId)
+                    .orElseThrow(() -> new RuntimeException("User not found for: " + name));
+        }
     }
 }

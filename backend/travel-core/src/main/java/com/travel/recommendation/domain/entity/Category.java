@@ -24,9 +24,23 @@ public class Category {
     @Column(unique = true, nullable = false, length = 50)
     private String name;
 
-    @Column(length = 50)
+    @Column(unique = true, nullable = false, length = 50)
     private String slug;
 
     @Column(columnDefinition = "TEXT")
     private String description;
+
+    @PrePersist
+    @PreUpdate
+    public void generateSlug() {
+        if (this.slug == null || this.slug.isEmpty()) {
+            if (this.name != null) {
+                this.slug = this.name.toLowerCase()
+                    .replaceAll("[^a-z0-9\\s]", "")
+                    .replaceAll("\\s+", "-")
+                    .replaceAll("-+", "-")
+                    .trim();
+            }
+        }
+    }
 }

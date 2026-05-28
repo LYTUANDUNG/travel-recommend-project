@@ -31,10 +31,12 @@ export interface IUserApi {
 export interface ILocationApi {
     getAll(): Promise<ApiResponse<Location[]>>;
     getById(id: number): Promise<ApiResponse<Location>>;
+    getByIds(ids: number[]): Promise<ApiResponse<Location[]>>;
     search(query: string, filters?: any): Promise<ApiResponse<Location[]>>;
     create(location: Partial<Location>): Promise<ApiResponse<Location>>;
     // AI/Recommendation Endpoints
-    getRecommendations(userId: number, lat?: number, lng?: number): Promise<ApiResponse<Location[]>>;
+    getRecommendations(userId?: number, lat?: number, lng?: number): Promise<ApiResponse<Location[]>>;
+    getSmartRecommendations(userId?: number): Promise<ApiResponse<Location[]>>;
     getPersonalizedRecommendations(lat?: number, lng?: number, hour?: number, weather?: string): Promise<ApiResponse<Location[]>>;
 }
 

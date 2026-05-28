@@ -34,7 +34,6 @@ export interface User {
 export interface Category {
     category_id: number;
     name: string;
-    slug: string;
 }
 
 export interface Tag {
@@ -47,10 +46,8 @@ export interface Location {
     location_id: number;
     name: string;
     description: string;
-    preview_experience?: string;
     // Geography
     address?: string;
-    ward?: string;
     district?: string;
     province?: string;
     latitude: number;
@@ -66,6 +63,7 @@ export interface Location {
     thumbnail_url?: string;
     average_rating: number;
     total_reviews: number;
+    view_count?: number;
     // Computed/Joined fields (Frontend convenience)
     tags?: Tag[]; // Rich features for CBF
     category_name?: string;
@@ -75,6 +73,8 @@ export interface Location {
     distance_score?: number;
     context_score?: number;
     matched_tags?: string[];
+    preview_experience?: string;
+    category?: Category;
 }
 
 export interface LocationTag {
@@ -92,7 +92,6 @@ export interface Review {
     images_json?: string[];
     verify_status: VerifyStatus;
     visit_date?: string;
-    trip_type?: string;
     created_at: string;
     // Joins
     user_name?: string;

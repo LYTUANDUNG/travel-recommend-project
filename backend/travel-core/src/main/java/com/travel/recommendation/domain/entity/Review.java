@@ -59,21 +59,19 @@ public class Review extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "verify_status", length = 30)
     @Builder.Default
-    private VerifyStatus verifyStatus = VerifyStatus.PENDING;
+    private VerifyStatus verifyStatus = VerifyStatus.APPROVED;
 
     @Column(name = "visit_date")
     @Builder.Default
     private LocalDate visitDate = LocalDate.now();
 
-    @Column(name = "trip_type", length = 50)
-    @Builder.Default
-    private String tripType = "Tham quan";
+
 
     @Column(name = "is_edited")
     @Builder.Default
     private Boolean isEdited = false;
 
     public enum VerifyStatus {
-        PENDING, APPROVED, REJECTED, HIDDEN
+        APPROVED, HIDDEN
     }
 }

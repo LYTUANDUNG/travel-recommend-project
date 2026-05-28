@@ -50,6 +50,13 @@ public class VisitRequestController {
         return ResponseEntity.ok(ApiResponse.success(visitRequestService.getAllRequests()));
     }
 
+    @GetMapping("/paginated")
+    public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<VisitRequestDto>>> getPaginatedRequests(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponse.success(visitRequestService.getPaginatedRequests(page, size)));
+    }
+
     @GetMapping("/user/{userId}")
     public ResponseEntity<ApiResponse<List<VisitRequestDto>>> getUserRequests(@PathVariable Long userId) {
         return ResponseEntity.ok(ApiResponse.success(visitRequestService.getUserRequests(userId)));

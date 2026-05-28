@@ -40,8 +40,25 @@ public class TripController {
 
     @PostMapping("/sync")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<Void>> syncTrip(@RequestParam Long userId, @RequestBody List<Long> locationIds) {
-        tripService.syncTrip(userId, locationIds);
+    public ResponseEntity<ApiResponse<Void>> syncTrip(@RequestParam Long userId, @RequestBody com.fasterxml.jackson.databind.JsonNode payload) {
+        List<com.travel.recommendation.service.TripService.TripLocationSyncItem> items = new java.util.ArrayList<>();
+        if (payload != null && payload.isArray()) {
+            int index = 0;
+            for (com.fasterxml.jackson.databind.JsonNode node : payload) {
+                if (node.isNumber()) {
+                    items.add(new com.travel.recommendation.service.TripService.TripLocationSyncItem(node.asLong(), 1, index));
+                } else {
+                    Long locationId = node.has("location_id") ? node.get("location_id").asLong() : (node.has("locationId") ? node.get("locationId").asLong() : null);
+                    Integer day = node.has("day") ? node.get("day").asInt() : 1;
+                    Integer order = node.has("order_index") ? node.get("order_index").asInt() : (node.has("order") ? node.get("order").asInt() : index);
+                    if (locationId != null) {
+                        items.add(new com.travel.recommendation.service.TripService.TripLocationSyncItem(locationId, day, order));
+                    }
+                }
+                index++;
+            }
+        }
+        tripService.syncTripItems(userId, items);
         return ResponseEntity.ok(ApiResponse.success(null, "Đồng bộ hành trình thành công"));
     }
 }

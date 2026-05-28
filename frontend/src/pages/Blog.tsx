@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
-import { Calendar, User, ArrowRight, Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ArrowRight, Calendar, Loader2, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { PageContainer, PageHeader, PageShell, Surface } from '../components/ui/AppPage';
 import { api } from '../api';
 
 export default function Blog() {
@@ -11,11 +12,9 @@ export default function Blog() {
     useEffect(() => {
         api.blog.getAll({ t: Date.now() })
             .then(res => {
-                // Backend returns Page<BlogDto>, extract .content
                 if (res.success) {
                     const data = res.data as any;
                     const blogList = data.content || (Array.isArray(data) ? data : []);
-                    // Sort by newest first
                     setBlogs([...blogList].sort((a, b) => {
                         const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
                         const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
@@ -26,69 +25,68 @@ export default function Blog() {
             .finally(() => setLoading(false));
     }, []);
 
-    if (loading) return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
-            <Loader2 className="w-10 h-10 animate-spin text-primary-600" />
-        </div>
-    );
-
     return (
-        <div className="bg-slate-50 dark:bg-slate-950 min-h-screen pt-20 pb-20">
-            <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
-                <div className="container mx-auto px-4 py-16 text-center">
-                    <span className="text-primary-600 font-bold tracking-wider uppercase text-sm mb-2 block">Blog Du Lịch</span>
-                    <h1 className="text-4xl md:text-5xl font-serif font-bold text-slate-900 dark:text-white mb-4">Cảm hứng & Chia sẻ</h1>
-                    <p className="text-slate-600 dark:text-slate-300 max-w-2xl mx-auto text-lg">
-                        Những câu chuyện, kinh nghiệm và bí kíp du lịch hữu ích từ cộng đồng đam mê xê dịch.
-                    </p>
-                </div>
-            </div>
+        <PageShell>
+            <PageContainer className="pt-8 space-y-8">
+                <PageHeader
+                    eyebrow="Blog du lịch"
+                    title="Cẩm nang & chia sẻ"
+                    description="Những câu chuyện, kinh nghiệm và bí kíp du lịch hữu ích từ cộng đồng VinaTravel."
+                />
 
-            <div className="container mx-auto px-4 py-12">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {blogs.map(blog => (
-                        <article key={blog.id} className="bg-white dark:bg-slate-900 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all border border-slate-100 dark:border-slate-800 group">
-                            <div className="h-64 overflow-hidden relative">
-                                <img
-                                    src={blog.thumbnail_url || 'https://via.placeholder.com/800x400'}
-                                    alt={blog.title}
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                />
-                                <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-primary-600">
-                                    {blog.category || 'Du lịch'}
-                                </div>
-                            </div>
-                            <div className="p-6">
-                                <div className="flex items-center gap-4 text-slate-400 text-xs mb-3">
-                                    <div className="flex items-center gap-1">
-                                        <Calendar className="w-3 h-3" />
-                                        <span>{blog.created_at ? new Date(blog.created_at).toLocaleDateString('vi-VN') : 'Mới đăng'}</span>
+                {loading ? (
+                    <Surface className="p-12 flex items-center justify-center">
+                        <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+                    </Surface>
+                ) : blogs.length === 0 ? (
+                    <Surface className="p-12 text-center">
+                        <h2 className="text-xl font-black">Chưa có bài viết</h2>
+                        <p className="mt-2 text-sm text-slate-500">Nội dung sẽ được cập nhật sau.</p>
+                    </Surface>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        {blogs.map(blog => (
+                            <article
+                                key={blog.id || blog.post_id}
+                                className="group bg-white dark:bg-slate-900 rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-all border border-slate-200/70 dark:border-slate-800 cursor-pointer"
+                                onClick={() => navigate(`/blog/${blog.id || blog.post_id}`)}
+                            >
+                                <div className="h-56 overflow-hidden relative">
+                                    <img
+                                        src={blog.thumbnail_url || 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1000&q=80'}
+                                        alt={blog.title}
+                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                    />
+                                    <div className="absolute top-4 left-4 bg-white/90 dark:bg-slate-950/90 backdrop-blur px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest text-orange-500">
+                                        {blog.category || blog.category_name || 'Du lịch'}
                                     </div>
-                                    <div className="flex items-center gap-1">
-                                        <User className="w-3 h-3" />
-                                        <span>{blog.author_name || 'Admin'}</span>
+                                </div>
+                                <div className="p-6">
+                                    <div className="flex items-center gap-4 text-slate-400 text-xs mb-3">
+                                        <span className="flex items-center gap-1">
+                                            <Calendar className="w-3.5 h-3.5" />
+                                            {blog.created_at ? new Date(blog.created_at).toLocaleDateString('vi-VN') : 'Mới đăng'}
+                                        </span>
+                                        <span className="flex items-center gap-1">
+                                            <User className="w-3.5 h-3.5" />
+                                            {blog.author_name || 'Admin'}
+                                        </span>
+                                    </div>
+                                    <h3 className="text-xl font-black text-slate-950 dark:text-white mb-3 line-clamp-2 group-hover:text-orange-500 transition-colors">
+                                        {blog.title}
+                                    </h3>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-3 leading-6">
+                                        {blog.excerpt || (blog.content ? `${blog.content.substring(0, 150)}...` : '')}
+                                    </p>
+                                    <div className="mt-5 inline-flex items-center gap-2 text-orange-500 font-black uppercase tracking-widest text-[10px]">
+                                        Đọc tiếp <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                                     </div>
                                 </div>
-                                <h3 
-                                    onClick={() => navigate(`/blog/${blog.id}`)}
-                                    className="text-xl font-serif font-bold text-slate-900 dark:text-white mb-3 line-clamp-2 hover:text-primary-600 transition-colors cursor-pointer"
-                                >
-                                    {blog.title}
-                                </h3>
-                                <p className="text-slate-600 dark:text-slate-400 text-sm mb-4 line-clamp-3 leading-relaxed">
-                                    {blog.excerpt || (blog.content ? blog.content.substring(0, 150) + '...' : '')}
-                                </p>
-                                <button 
-                                    onClick={() => navigate(`/blog/${blog.id}`)}
-                                    className="flex items-center gap-2 text-primary-600 font-bold text-sm hover:gap-3 transition-all group-hover:text-primary-700"
-                                >
-                                    Đọc tiếp <ArrowRight className="w-4 h-4" />
-                                </button>
-                            </div>
-                        </article>
-                    ))}
-                </div>
-            </div>
-        </div>
+                            </article>
+                        ))}
+                    </div>
+                )}
+            </PageContainer>
+        </PageShell>
     );
 }

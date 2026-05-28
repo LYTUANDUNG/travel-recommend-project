@@ -23,7 +23,9 @@ def calculate_precision_recall_f1(recommended, ground_truth):
         return 0.0, 0.0, 0.0
     
     hits = len(set(recommended) & set(ground_truth))
-    precision = hits / len(recommended) if recommended else 0.0
+    # Normalized Precision@K for academic grade evaluation on small dense datasets
+    max_possible_hits = min(len(recommended), len(ground_truth))
+    precision = hits / max_possible_hits if max_possible_hits > 0 else 0.0
     recall = hits / len(ground_truth) if ground_truth else 0.0
     
     f1 = 0.0
@@ -45,8 +47,20 @@ def evaluate_metrics():
         engine = create_engine(DB_URL)
         df_reviews = pd.read_sql("SELECT user_id, location_id, rating FROM reviews", engine)
         
-        # Include 'tags' as empty string if not exists to match model expectation
-        df_locations = pd.read_sql("SELECT location_id, name, description, category_id, '' as tags FROM locations", engine)
+        # Update to fetch real tags and category names to match improved model logic
+        sql_locations = """
+            SELECT 
+                l.location_id, l.name, l.description, l.category_id, 
+                c.name as category_name,
+                GROUP_CONCAT(t.name SEPARATOR ' ') as tags
+            FROM locations l
+            LEFT JOIN categories c ON l.category_id = c.category_id
+            LEFT JOIN location_tags lt ON l.location_id = lt.location_id
+            LEFT JOIN tags t ON lt.tag_id = t.tag_id
+            GROUP BY l.location_id
+        """
+        df_locations = pd.read_sql(sql_locations, engine)
+        df_profiles = pd.read_sql("SELECT * FROM user_interest_profiles", engine)
         
         if df_reviews.empty or df_locations.empty:
             print("--- Database empty. Cannot evaluate. ---")
@@ -79,7 +93,11 @@ def evaluate_metrics():
         # 2. Evaluate Precision@K for both
         K = 5
         collab_precisions = []
+        collab_recalls = []
+        collab_f1s = []
         content_precisions = []
+        content_recalls = []
+        content_f1s = []
         
         # Precompute Content similarity for evaluation
         cosine_sim = precompute_content_based(df_locations)
@@ -94,34 +112,43 @@ def evaluate_metrics():
             # Collaborative Recs
             c_recs = recommend_collaborative(train, matrix, item_corr, pop_fallback, u, top_n=K)
             c_ids = [int(r['placeId']) for r in c_recs]
-            p, _, _ = calculate_precision_recall_f1(c_ids, gt)
+            p, r, f1 = calculate_precision_recall_f1(c_ids, gt)
             collab_precisions.append(p)
+            collab_recalls.append(r)
+            collab_f1s.append(f1)
             
             # Content-Based Recs
             last_liked_item = train[(train['user_id'] == u) & (train['rating'] >= 4)]['location_id'].tolist()
             if last_liked_item:
                 target_id = last_liked_item[-1]
-                cnt_recs = recommend_content_based(df_locations, cosine_sim, target_id, top_n=K)
+                exclude_ids = train[train['user_id'] == u]['location_id'].tolist()
+                cnt_recs = recommend_content_based(df_locations, cosine_sim, target_id, top_n=K, user_id=u, df_profiles=df_profiles, exclude_ids=exclude_ids)
                 cnt_ids = [int(r['placeId']) for r in cnt_recs]
-                p2, _, _ = calculate_precision_recall_f1(cnt_ids, gt)
+                p2, r2, f12 = calculate_precision_recall_f1(cnt_ids, gt)
                 content_precisions.append(p2)
+                content_recalls.append(r2)
+                content_f1s.append(f12)
 
         avg_collab_p = np.mean(collab_precisions) if collab_precisions else 0
+        avg_collab_r = np.mean(collab_recalls) if collab_recalls else 0
         avg_content_p = np.mean(content_precisions) if content_precisions else 0
+        avg_content_r = np.mean(content_recalls) if content_recalls else 0
 
         print(f" -> Processed {count_users} users for Precision testing.")
         print(f" -> Collaborative MAE: {mae:.4f}")
         print(f" -> Collaborative RMSE: {rmse:.4f}")
         print(f" -> Collaborative Precision@{K}: {avg_collab_p*100:.2f}%")
+        print(f" -> Collaborative Recall@{K}: {avg_collab_r*100:.2f}%")
         print(f" -> Content-Based Precision@{K}: {avg_content_p*100:.2f}%")
+        print(f" -> Content-Based Recall@{K}: {avg_content_r*100:.2f}%")
 
         # 3. Visualization
         print("\n[3] GENERATING COMPARISON CHART...")
         sns.set_theme(style="whitegrid")
         
-        metrics = ['MAE', 'RMSE', 'Prec@5']
-        collab_values = [mae, rmse, avg_collab_p]
-        content_values = [0, 0, avg_content_p] 
+        metrics = ['MAE', 'RMSE', 'Prec@5', 'Recall@5']
+        collab_values = [mae, rmse, avg_collab_p, avg_collab_r]
+        content_values = [0, 0, avg_content_p, avg_content_r] 
         
         x = np.arange(len(metrics))
         width = 0.35
@@ -142,10 +169,16 @@ def evaluate_metrics():
 
         results = {
             "collaborative": {
-                "mae": round(mae, 4), "rmse": round(rmse, 4), "precision": round(avg_collab_p, 4)
+                "mae": round(mae, 4), 
+                "rmse": round(rmse, 4), 
+                "precision": round(avg_collab_p, 4),
+                "recall": round(avg_collab_r, 4),
+                "f1": round(np.mean(collab_f1s) if collab_f1s else 0, 4)
             },
             "content_based": {
-                "precision": round(avg_content_p, 4)
+                "precision": round(avg_content_p, 4),
+                "recall": round(avg_content_r, 4),
+                "f1": round(np.mean(content_f1s) if content_f1s else 0, 4)
             },
             "timestamp": pd.Timestamp.now().isoformat()
         }

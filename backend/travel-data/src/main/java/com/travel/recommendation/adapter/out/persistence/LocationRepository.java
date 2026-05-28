@@ -1,21 +1,23 @@
 package com.travel.recommendation.adapter.out.persistence;
 
 import com.travel.recommendation.domain.entity.Location;
+import com.travel.recommendation.domain.entity.Category;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
-
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.Query;
-import java.util.List;
-
 import org.springframework.data.jpa.repository.EntityGraph;
-import java.util.List;
-import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import java.util.List;
+import java.util.Optional;
+import java.time.LocalDateTime;
 
 @Repository
 public interface LocationRepository extends JpaRepository<Location, Long> {
+    @EntityGraph(attributePaths = {"category", "locationTags", "locationTags.tag"})
+    List<Location> findAllById(Iterable<Long> ids);
+
     @EntityGraph(attributePaths = {"category", "locationTags", "locationTags.tag"})
     List<Location> findAll();
 
@@ -26,36 +28,38 @@ public interface LocationRepository extends JpaRepository<Location, Long> {
     List<Location> findByNameContainingIgnoreCaseOrProvinceContainingIgnoreCase(String name, String province);
 
     @Query(value = "SELECT *, " +
-               "(MATCH(name, address) AGAINST(:query IN NATURAL LANGUAGE MODE) * 2 + " +
-               "(IF(name LIKE CONCAT('%', :query, '%'), 1, 0))) AS score " +
+               "(MATCH(name, address) AGAINST(?1 IN NATURAL LANGUAGE MODE) * 2 + " +
+               "(IF(name LIKE CONCAT('%', ?1, '%'), 1, 0))) AS score " +
                "FROM locations " +
-               "WHERE MATCH(name, address) AGAINST(:query IN NATURAL LANGUAGE MODE) " +
-               "OR name LIKE CONCAT('%', :query, '%') " +
+               "WHERE MATCH(name, address) AGAINST(?1 IN NATURAL LANGUAGE MODE) " +
+               "OR name LIKE CONCAT('%', ?1, '%') " +
                "ORDER BY score DESC", nativeQuery = true)
-    List<Location> searchLocationsNative(@Param("query") String query);
+    List<Location> searchLocationsNative(String query);
 
-    @Query(value = "SELECT * FROM locations WHERE coordinate IS NOT NULL AND ST_Distance_Sphere(coordinate, POINT(:lng, :lat)) <= :radiusInMeters", nativeQuery = true)
-    List<Location> findLocationsWithinRadius(@Param("lat") double lat, @Param("lng") double lng,
-            @Param("radiusInMeters") double radiusInMeters);
+    @Query(value = "SELECT * FROM locations WHERE coordinate IS NOT NULL AND ST_Distance_Sphere(coordinate, POINT(?2, ?1)) <= ?3", nativeQuery = true)
+    List<Location> findLocationsWithinRadius(double lat, double lng, double radiusInMeters);
 
     @Query("SELECT l FROM Location l LEFT JOIN l.category c WHERE " +
-           "(:query IS NULL OR :query = '' OR LOWER(l.name) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(l.address) LIKE LOWER(CONCAT('%', :query, '%'))) AND " +
-           "(:province IS NULL OR :province = 'All' OR l.province = :province) AND " +
-           "(:category IS NULL OR :category = 'All' OR c.name = :category) AND " +
-           "(:rating IS NULL OR l.averageRating >= :rating) AND " +
-           "(:price IS NULL OR :price = 'All' OR l.priceRangeStr LIKE CONCAT('%', :price, '%'))")
+           "(?1 IS NULL OR ?1 = '' OR LOWER(l.name) LIKE LOWER(CONCAT('%', ?1, '%')) OR LOWER(l.address) LIKE LOWER(CONCAT('%', ?1, '%'))) AND " +
+           "(?2 IS NULL OR ?2 = 'All' OR l.province = ?2) AND " +
+           "(?3 IS NULL OR ?3 = 'All' OR c.name = ?3) AND " +
+           "(?4 IS NULL OR l.averageRating >= ?4) AND " +
+           "(?5 IS NULL OR ?5 = 'All' OR l.priceRangeStr LIKE CONCAT('%', ?5, '%'))")
     Page<Location> findLocationsPaginated(
-        @Param("query") String query,
-        @Param("province") String province,
-        @Param("category") String category,
-        @Param("rating") Double rating,
-        @Param("price") String price,
+        String query,
+        String province,
+        String category,
+        Double rating,
+        String price,
         Pageable pageable
     );
 
     @Query("SELECT DISTINCT l.province FROM Location l WHERE l.province IS NOT NULL")
     List<String> findDistinctProvinces();
 
-    @Query("SELECT DISTINCT l.category FROM Location l WHERE l.category IS NOT NULL")
-    List<com.travel.recommendation.domain.entity.Category> findActiveCategories();
+    @Query("SELECT l.category FROM Location l WHERE l.category IS NOT NULL GROUP BY l.category")
+    List<Category> findActiveCategories();
+
+    @Query("SELECT COUNT(l) FROM Location l WHERE l.createdAt > ?1")
+    long countByCreatedAtAfter(LocalDateTime date);
 }

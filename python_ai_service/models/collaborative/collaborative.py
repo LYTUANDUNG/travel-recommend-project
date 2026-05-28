@@ -17,7 +17,8 @@ def precompute_collaborative(df_reviews: pd.DataFrame):
         
     # Bước 1: Khởi tạo Ma trận Người dùng - Địa điểm (User-Item Matrix)
     # Các hàng là User, các cột là Location, giá trị là điểm Rating.
-    matrix = df_reviews.pivot(index='user_id', columns='location_id', values='rating').fillna(0)
+    # Sử dụng pivot_table để xử lý trường hợp một user có nhiều rating cho cùng 1 location (lấy trung bình).
+    matrix = df_reviews.pivot_table(index='user_id', columns='location_id', values='rating', aggfunc='mean').fillna(0)
     
     # Bước 2: Tính hệ số tương quan Pearson giữa các địa điểm (Items)
     # Kết quả là một ma trận Square [N_locations x N_locations]
@@ -38,11 +39,12 @@ def recommend_collaborative(df_reviews: pd.DataFrame, user_item_matrix, item_cor
     if user_item_matrix is None or user_id not in user_item_matrix.index:
         res = []
         for loc_id in pop_fallback.head(top_n).index:
-            # Scaled score để hiển thị giao diện (60-95%)
-            adjusted_score = 0.60 + (float(pop_fallback[loc_id]) / 5.0) * 0.35
+            # Normalize rating (1-5) to 0-1 scale: (R-1)/4
+            raw_rating = float(pop_fallback[loc_id])
+            normalized_score = (max(1.0, min(5.0, raw_rating)) - 1.0) / 4.0
             res.append({
                 "placeId": int(loc_id), 
-                "score": round(adjusted_score, 2)
+                "score": round(normalized_score, 3)
             })
         return res
         
@@ -58,11 +60,11 @@ def recommend_collaborative(df_reviews: pd.DataFrame, user_item_matrix, item_cor
             # Pred = Sigma(Similarity * Rating) / Sigma(|Similarity|)
             numerator = sum(item_sims[rated_item] * user_ratings[rated_item] 
                            for rated_item in user_ratings[user_ratings > 0].index 
-                           if not np.isnan(item_sims[rated_item]))
+                           if not np.isnan(item_sims[rated_item]) and item_sims[rated_item] > 0)
             
-            denominator = sum(abs(item_sims[rated_item]) 
-                             for rated_item in user_ratings[user_ratings > 0].index 
-                             if not np.isnan(item_sims[rated_item]))
+            denominator = sum(item_sims[rated_item] 
+                              for rated_item in user_ratings[user_ratings > 0].index 
+                              if not np.isnan(item_sims[rated_item]) and item_sims[rated_item] > 0)
             
             if denominator > 0:
                 scores[item] = numerator / denominator
@@ -71,11 +73,11 @@ def recommend_collaborative(df_reviews: pd.DataFrame, user_item_matrix, item_cor
     
     result = []
     for item_id, score in recommended_items:
-        # Chuyển đổi Rank 1-5 sang phần trăm 60-95%
-        adjusted_score = 0.60 + (float(score) / 5.0) * 0.35
+        # Normalize rating (1-5) to 0-1 scale: (R-1)/4
+        normalized_score = (max(1.0, min(5.0, float(score))) - 1.0) / 4.0
         result.append({
             "placeId": int(item_id),
-            "score": round(adjusted_score, 2)
+            "score": round(normalized_score, 3)
         })
         
     return result

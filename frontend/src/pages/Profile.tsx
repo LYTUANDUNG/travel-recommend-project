@@ -6,8 +6,6 @@ import { api } from '../api';
 import { Location, Favorite, VisitRequest } from '../types/schema';
 import RatingStars from '../components/RatingStars';
 import { useNavigate } from 'react-router-dom';
-import { QRCodeSVG } from 'qrcode.react';
-
 export default function Profile() {
     const { user, loginAsUser, logout } = useAuthStore();
     const navigate = useNavigate();
@@ -25,7 +23,8 @@ export default function Profile() {
         full_name: user?.full_name || '',
         phone_number: user?.phone_number || '',
         birth_year: user?.birth_year || '',
-        gender: (user?.gender || '') as any
+        gender: (user?.gender || '') as any,
+        interests: user?.interests ? user.interests.join(',') : ''
     });
 
     // Password State
@@ -106,7 +105,8 @@ export default function Profile() {
                 full_name: formData.full_name,
                 phone_number: formData.phone_number,
                 birth_year: formData.birth_year ? parseInt(formData.birth_year.toString()) : undefined,
-                gender: formData.gender
+                gender: formData.gender,
+                interests: formData.interests ? formData.interests.split(',').map(i => i.trim()).filter(Boolean) : []
             });
             if (res.success && res.data) {
                 loginAsUser(res.data); // Update global store
@@ -147,21 +147,29 @@ export default function Profile() {
 
     return (
         <div className="min-h-screen pt-24 pb-12">
-            <div className="container mx-auto px-4 max-w-5xl">
-                <h1 className="text-3xl font-serif font-bold text-slate-900 dark:text-white mb-8 flex items-center gap-3">
-                    Hồ sơ của bạn
-                </h1>
+            <div className="container mx-auto px-4 max-w-6xl">
+                <div className="flex items-center gap-4 mb-10">
+                    <div className="w-14 h-14 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center text-blue-600">
+                        <User className="w-6 h-6" />
+                    </div>
+                    <div>
+                        <h1 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white">
+                            Hồ sơ của bạn
+                        </h1>
+                        <p className="text-slate-500 text-sm mt-1">Quản lý thông tin và hành trình cá nhân</p>
+                    </div>
+                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     {/* Sidebar */}
-                    <div className="md:col-span-1 space-y-4">
-                        <div className="glass p-6 rounded-2xl text-center">
-                            <div className="relative inline-block group/avatar">
+                    <div className="lg:col-span-4 space-y-6">
+                        <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm text-center">
+                            <div className="relative inline-block mb-6">
                                 <div className="relative">
                                     <img
                                         src={user.avatar_url || `https://ui-avatars.com/api/?name=${user.full_name || 'User'}&background=random`}
                                         alt={user.full_name}
-                                        className="w-24 h-24 rounded-full border-4 border-white shadow-lg mx-auto object-cover"
+                                        className="w-32 h-32 rounded-full border border-slate-100 shadow-sm mx-auto object-cover"
                                     />
                                     {avatarLoading && (
                                         <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center">
@@ -169,22 +177,21 @@ export default function Profile() {
                                         </div>
                                     )}
                                 </div>
-                                <label className="absolute bottom-0 right-0 bg-primary-600 p-2 rounded-full border-2 border-white text-white cursor-pointer hover:bg-primary-700 transition-all shadow-md active:scale-95">
+                                <label className="absolute bottom-1 right-1 bg-blue-600 p-2.5 rounded-full border-2 border-white dark:border-slate-900 text-white cursor-pointer hover:bg-blue-700 transition-colors shadow-sm">
                                     <Camera className="w-4 h-4" />
                                     <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} disabled={avatarLoading} />
                                 </label>
-                                <span className="absolute top-0 right-0 bg-green-500 w-4 h-4 rounded-full border-2 border-white"></span>
                             </div>
-                            <h2 className="mt-4 font-bold text-lg text-slate-900 dark:text-white">{user.full_name}</h2>
-                            <p className="text-slate-500 dark:text-slate-400 text-sm">{user.email}</p>
+                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">{user.full_name}</h2>
+                            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">{user.email}</p>
                             {user.last_avatar_update && (
-                                <p className="text-[10px] text-slate-400 mt-2">
-                                    Cập nhật gần nhất: {new Date(user.last_avatar_update).toLocaleDateString()}
+                                <p className="text-[10px] font-medium text-slate-400 mt-4 bg-slate-50 dark:bg-slate-800 py-1.5 rounded-lg inline-block px-3">
+                                    Cập nhật: {new Date(user.last_avatar_update).toLocaleDateString()}
                                 </p>
                             )}
                         </div>
 
-                        <nav className="glass rounded-2xl overflow-hidden p-2">
+                        <nav className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm p-3 space-y-1">
                             {[
                                 { id: 'info', label: 'Thông tin cá nhân', icon: <User className="w-4 h-4" /> },
                                 { id: 'history', label: 'Lịch sử đặt chỗ', icon: <History className="w-4 h-4" /> },
@@ -195,38 +202,41 @@ export default function Profile() {
                                     key={item.id}
                                     onClick={() => setActiveTab(item.id as any)}
                                     className={cn(
-                                        "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium text-sm mb-1",
+                                        "w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-colors text-sm font-medium",
                                         activeTab === item.id
-                                            ? "bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 shadow-sm"
-                                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                                            ? "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400"
+                                            : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900"
                                     )}
                                 >
-                                    {item.icon}
+                                    <span className={cn("p-1.5 rounded-lg", activeTab === item.id ? "bg-blue-100 dark:bg-blue-900/40 text-blue-600" : "bg-slate-100 dark:bg-slate-800")}>
+                                        {item.icon}
+                                    </span>
                                     {item.label}
                                 </button>
                             ))}
-                            <div className="h-px bg-slate-100 dark:bg-slate-700 my-2" />
-                            <button onClick={logout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all font-medium text-sm">
-                                <LogOut className="w-4 h-4" />
+                            <div className="h-px bg-slate-100 dark:bg-slate-800 my-2 mx-2" />
+                            <button onClick={logout} className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-red-600 hover:bg-red-50 transition-colors text-sm font-medium">
+                                <span className="p-1.5 rounded-lg bg-red-50 text-red-600">
+                                    <LogOut className="w-4 h-4" />
+                                </span>
                                 Đăng xuất
                             </button>
                         </nav>
                     </div>
 
                     {/* Main Content */}
-                    <div className="md:col-span-3">
-                        <div className="glass p-8 rounded-2xl min-h-[400px]">
+                    <div className="lg:col-span-8">
+                        <div className="bg-white dark:bg-slate-900 p-8 lg:p-10 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm min-h-[600px]">
                             {activeTab === 'info' && (
-                                <div className="space-y-6 animate-fade-in">
-                                    <div className="flex justify-between items-center">
-                                        <h3 className="text-xl font-bold flex items-center gap-2 text-slate-900 dark:text-white">
-                                            <User className="w-5 h-5 text-primary-600" />
-                                            Thông tin tài khoản
+                                <div className="space-y-8">
+                                    <div className="flex justify-between items-center pb-6 border-b border-slate-100 dark:border-slate-800">
+                                        <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                                            Thông tin cá nhân
                                         </h3>
                                         {!isEditing ? (
-                                            <button onClick={() => setIsEditing(true)} className="text-sm font-medium text-primary-600 hover:text-primary-700 transition">Chỉnh sửa</button>
+                                            <button onClick={() => setIsEditing(true)} className="px-5 py-2 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 rounded-full text-sm font-medium transition-colors">Chỉnh sửa</button>
                                         ) : (
-                                            <button onClick={() => setIsEditing(false)} className="text-sm font-medium text-slate-500 hover:text-slate-700 transition">Hủy</button>
+                                            <button onClick={() => setIsEditing(false)} className="px-5 py-2 text-red-600 hover:bg-red-50 rounded-full text-sm font-medium transition-colors">Hủy</button>
                                         )}
                                     </div>
 
@@ -291,17 +301,27 @@ export default function Profile() {
 
                                         <div className="md:col-span-2">
                                             <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Sở thích du lịch</label>
-                                            <div className="flex flex-wrap gap-2 mt-1">
-                                                {user.interests && user.interests.length > 0 ? (
-                                                    user.interests.map((interest: string, i: number) => (
-                                                        <span key={i} className="px-3 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-full text-xs font-medium">
-                                                            {interest}
-                                                        </span>
-                                                    ))
-                                                ) : (
-                                                    <span className="text-sm text-slate-400">Chưa có thông tin sở thích</span>
-                                                )}
-                                            </div>
+                                            {isEditing ? (
+                                                <input
+                                                    type="text"
+                                                    value={formData.interests}
+                                                    onChange={e => setFormData({ ...formData, interests: e.target.value })}
+                                                    placeholder="Ví dụ: Bãi biển, Cà phê, Lịch sử (ngăn cách bằng dấu phẩy)"
+                                                    className="w-full p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors text-slate-900 dark:text-white"
+                                                />
+                                            ) : (
+                                                <div className="flex flex-wrap gap-2 mt-1">
+                                                    {user.interests && user.interests.length > 0 ? (
+                                                        user.interests.map((interest: string, i: number) => (
+                                                            <span key={i} className="px-3 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-full text-xs font-medium">
+                                                                {interest}
+                                                            </span>
+                                                        ))
+                                                    ) : (
+                                                        <span className="text-sm text-slate-400">Chưa có thông tin sở thích</span>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div className="md:col-span-2">
@@ -434,7 +454,7 @@ export default function Profile() {
                                                 return (
                                                     <div 
                                                         key={f.id} 
-                                                        onClick={() => navigate(`/detail/${id}`)}
+                                                        onClick={() => navigate(`/location/${id}`)}
                                                         className="group bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700 overflow-hidden cursor-pointer hover:shadow-lg transition-all"
                                                     >
                                                         <div className="h-32 overflow-hidden">

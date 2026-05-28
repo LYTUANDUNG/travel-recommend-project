@@ -41,8 +41,7 @@ public class ReviewDto {
     private String verifyStatus;
     @JsonProperty("visit_date")
     private LocalDate visitDate;
-    @JsonProperty("trip_type")
-    private String tripType;
+
     @JsonProperty("is_edited")
     private boolean isEdited;
     private LocalDateTime createdAt;

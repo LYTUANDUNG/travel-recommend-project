@@ -30,12 +30,36 @@ apiClient.interceptors.request.use((config) => {
     return config;
 });
 
+import { performanceStore } from './performanceStore';
+
 apiClient.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        const time = response.headers['x-response-time-ms'];
+        if (time) {
+            performanceStore.add({
+                method: response.config.method?.toUpperCase() || 'GET',
+                url: response.config.url || '',
+                status: response.status,
+                time: parseInt(time as string)
+            });
+        }
+        return response;
+    },
     (error) => {
+        if (error.response) {
+            const time = error.response.headers['x-response-time-ms'];
+            if (time) {
+                performanceStore.add({
+                    method: error.config.method?.toUpperCase() || 'GET',
+                    url: error.config.url || '',
+                    status: error.response.status,
+                    time: parseInt(time as string)
+                });
+            }
+        }
+        
         if (error.response && error.response.status === 401) {
             localStorage.removeItem('token');
-            // Check if we are not already on login page
             if (window.location.pathname !== '/login') {
                 window.location.href = '/login';
             }
@@ -117,7 +141,8 @@ export const realUserApi = {
                 avatar_url: data.avatar_url,
                 gender: (data.gender as any) === '' ? undefined : data.gender,
                 birth_year: data.birth_year,
-                nationality: data.nationality
+                nationality: data.nationality,
+                interests: Array.isArray(data.interests) ? data.interests.join(',') : data.interests
             };
             const response = await apiClient.put(`/users/${id}`, payload);
             return response.data;
@@ -208,6 +233,20 @@ export const realLocationApi = {
             return { success: false, data: {} as any, message: error.response?.data?.message || 'Failed to fetch' };
         }
     },
+    getByIds: async (ids: number[]): Promise<ApiResponse<Location[]>> => {
+        try {
+            const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+            if (uniqueIds.length === 0) {
+                return { success: true, data: [] as any, message: 'No locations requested' };
+            }
+            const response = await apiClient.get('/locations/batch', {
+                params: { ids: uniqueIds.join(',') }
+            });
+            return response.data;
+        } catch (error: any) {
+            return { success: false, data: [] as any, message: error.response?.data?.message || 'Failed to fetch locations' };
+        }
+    },
     search: async (query: string): Promise<ApiResponse<Location[]>> => {
         try {
             const response = await apiClient.get(`/locations/search?query=${encodeURIComponent(query)}`);
@@ -240,14 +279,31 @@ export const realLocationApi = {
             return { success: false, data: {} as any, message: error.response?.data?.message || 'Create failed' };
         }
     },
-    getRecommendations: async (userId: number, lat?: number, lng?: number): Promise<ApiResponse<Location[]>> => {
+    getRecommendations: async (userId?: number, lat?: number, lng?: number): Promise<ApiResponse<Location[]>> => {
         try {
-            let url = `/locations/recommendations?userId=${userId}`;
-            if (lat !== undefined && lng !== undefined) url += `&lat=${lat}&lng=${lng}`;
+            let url = `/locations/recommendations`;
+            if (userId) {
+                url += `?userId=${userId}`;
+                if (lat !== undefined && lng !== undefined) url += `&lat=${lat}&lng=${lng}`;
+            } else {
+                if (lat !== undefined && lng !== undefined) url += `?lat=${lat}&lng=${lng}`;
+            }
             const response = await apiClient.get(url);
             return response.data;
         } catch (error: any) {
             return { success: false, data: [] as any, message: error.response?.data?.message || 'Failed to fetch recommendations' };
+        }
+    },
+    getSmartRecommendations: async (userId?: number): Promise<ApiResponse<Location[]>> => {
+        try {
+            let url = `/locations/recommendations/smart`;
+            if (userId) {
+                url += `?userId=${userId}`;
+            }
+            const response = await apiClient.get(url);
+            return response.data;
+        } catch (error: any) {
+            return { success: false, data: [] as any, message: error.response?.data?.message || 'Failed to fetch smart recommendations' };
         }
     },
     getSimilar: async (id: number, topN: number = 5): Promise<ApiResponse<Location[]>> => {
@@ -258,22 +314,7 @@ export const realLocationApi = {
             return { success: false, data: [] as any, message: error.response?.data?.message || 'Failed' };
         }
     },
-    getPersonalizedRecommendations: async (lat?: number, lng?: number, hour?: number, weather?: string): Promise<ApiResponse<Location[]>> => {
-        try {
-            let url = `/locations/recommendations/smart`;
-            const params = [];
-            if (lat !== undefined) params.push(`lat=${lat}`);
-            if (lng !== undefined) params.push(`lng=${lng}`);
-            if (hour !== undefined) params.push(`hour=${hour}`);
-            if (weather !== undefined) params.push(`weather=${weather}`);
-            if (params.length > 0) url += `?${params.join('&')}`;
 
-            const response = await apiClient.get(url);
-            return response.data;
-        } catch (error: any) {
-            return { success: false, data: [] as any, message: error.response?.data?.message || 'Failed to fetch smart recommendations' };
-        }
-    },
     delete: async (id: number): Promise<ApiResponse<any>> => {
         try {
             const response = await apiClient.delete(`/locations/${id}`);
@@ -310,8 +351,7 @@ export const realReviewApi = {
                 rating: review.rating,
                 comment: review.comment,
                 images_json: review.images_json,
-                visit_date: review.visit_date,
-                trip_type: review.trip_type
+                visit_date: review.visit_date
             };
             const response = await apiClient.post('/reviews', payload);
             return response.data;
@@ -376,6 +416,14 @@ export const realVisitApi = {
             return response.data;
         } catch (error: any) {
             return { success: false, data: [] as any, message: error.response?.data?.message || 'Failed to fetch' };
+        }
+    },
+    getPaginated: async (params: { page: number; size: number }): Promise<ApiResponse<any>> => {
+        try {
+            const response = await apiClient.get('/visits/paginated', { params });
+            return response.data;
+        } catch (error: any) {
+            return { success: false, data: null, message: error.response?.data?.message || 'Failed to fetch paginated visits' };
         }
     },
     canUserReview: async (userId: number, locationId: number): Promise<ApiResponse<boolean>> => {

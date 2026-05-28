@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,23 +6,30 @@
 
 @layer base {
   :root {
-    --color-primary: 0 109 119; /* Ocean Teal */
-    --color-secondary: 226 149 120; /* Soft Coral */
-    --color-accent: 245 230 211; /* Warm Sand */
+    --color-primary: 249 115 22; /* Warm Orange (#f97316) */
+    --color-secondary: 245 158 11; /* Warm Amber (#f59e0b) */
+    --color-accent: 254 243 199; /* Warm Yellow Light */
     --color-bg-light: 255 254 250; /* Pearl White */
     
-    --primary: 217 90% 61%;
+    --primary: 24 96% 53%; /* Warm Orange HSL matching #f97316 */
     --primary-foreground: 0 0% 100%;
-    --accent-vibrant: 262 83% 58%;
+    --accent-vibrant: 35 92% 50%; /* Warm Amber HSL matching #f59e0b */
   }
 
   body {
-    @apply font-sans text-gray-800 bg-[#FFFEFA] dark:bg-slate-950 dark:text-gray-100 transition-colors duration-300;
+    font-family: 'Outfit', sans-serif;
+    @apply text-slate-800 bg-white dark:bg-slate-950 dark:text-slate-100 transition-colors duration-300 antialiased;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-sans tracking-tight leading-tight;
+    font-family: 'Outfit', sans-serif;
+    @apply tracking-tight text-slate-900 dark:text-white font-bold;
   }
+
+  h1 { @apply text-4xl md:text-6xl font-bold leading-[1.15]; }
+  h2 { @apply text-3xl md:text-4xl font-bold leading-[1.2]; }
+  h3 { @apply text-2xl md:text-3xl font-semibold; }
+  p { @apply text-base text-slate-600 dark:text-slate-400 leading-relaxed font-normal; }
 }
 
 /* Clean Glassmorphism & Depth Utilities */
@@ -44,16 +51,16 @@
 }
 
 .card-hover {
-  @apply transition-all duration-700 ease-out hover:translate-y-[-12px] hover:shadow-[0_45px_100px_-20px_rgba(37,99,235,0.25)] dark:hover:shadow-[0_45px_100px_-20px_rgba(255,255,255,0.05)];
+  @apply transition-all duration-700 ease-out hover:translate-y-[-12px] hover:shadow-[0_45px_100px_-20px_rgba(249,115,22,0.25)] dark:hover:shadow-[0_45px_100px_-20px_rgba(255,255,255,0.05)];
 }
 
 /* Premium Design System Utilities */
 .premium-card {
-  @apply bg-white/80 backdrop-blur-3xl border border-slate-100 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.03)] transition-all duration-500 hover:shadow-[0_30px_60px_rgba(0,0,0,0.06)] dark:bg-slate-900/60 dark:border-slate-800;
+  @apply bg-white border border-slate-100 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] transition-all duration-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:bg-slate-900 dark:border-slate-800;
 }
 
 .btn-premium {
-  @apply relative overflow-hidden bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold text-sm uppercase tracking-widest transition-all hover:bg-slate-800 active:scale-95 shadow-2xl shadow-slate-900/20 dark:bg-white dark:text-slate-950;
+  @apply relative overflow-hidden bg-slate-900 text-white px-8 py-3.5 rounded-2xl font-semibold text-sm transition-all hover:bg-slate-800 active:scale-[0.98] shadow-md dark:bg-white dark:text-slate-950;
 }
 
 .glass-morphism {
@@ -62,7 +69,7 @@
 
 .bg-gradient-mesh {
   background-color: #ffffff;
-  background-image: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
+  background-image: radial-gradient(at 0% 0%, hsla(24,96%,53%,0.15) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(35,92%,50%,0.1) 0, transparent 50%), radial-gradient(at 100% 0%, hsla(24,96%,53%,0.1) 0, transparent 50%);
 }
 
 /* Micro-Animations Definition */
@@ -95,31 +102,35 @@
 
 /* Fallback/Force Utilities to ensure buttons are visible immediately without restart */
 @layer utilities {
+  .bg-primary-500 {
+    background-color: #f97316 !important;
+  }
+  
   .bg-primary-600 {
-    background-color: #2563eb !important;
+    background-color: #ea580c !important;
   }
 
   .hover\:bg-primary-700:hover {
-    background-color: #1d4ed8 !important;
+    background-color: #c2410c !important;
   }
 
   .text-primary-600 {
-    color: #2563eb !important;
+    color: #ea580c !important;
   }
 
   .focus\:ring-primary-500:focus {
-    --tw-ring-color: #3b82f6 !important;
+    --tw-ring-color: #f97316 !important;
   }
 
   .text-primary-500 {
-    color: #3b82f6 !important;
+    color: #f97316 !important;
   }
 
   .text-primary-700 {
-    color: #1d4ed8 !important;
+    color: #c2410c !important;
   }
 
   .bg-secondary-500 {
-    background-color: #0ea5e9 !important;
+    background-color: #f59e0b !important;
   }
 }

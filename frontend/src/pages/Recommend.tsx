@@ -1,94 +1,53 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MapView from '../components/MapView';
 import LocationCard from '../components/LocationCard';
-import { RecommendationResult } from '../types';
-import { useCollaborativeRecommendations, useRecommendations } from '../hooks/useRecommendations';
 import { useAuthStore } from '../store/useAuthStore';
+import { useFavoriteStore } from '../store/useFavoriteStore';
 import { useGeoLocation } from '../hooks/useGeoLocation';
-import { Sparkles, MapPin, Compass, LogIn, CloudRain, Sun, Thermometer, Clock } from 'lucide-react';
+import { 
+    Heart, 
+    LogIn, 
+    Loader2, 
+    Compass,
+    BadgeAlert
+} from 'lucide-react';
 
 export default function Recommend() {
-  const { coords, error: gpsError } = useGeoLocation();
-  const [weather, setWeather] = useState<{ temp: number; label: string; code: string } | null>(null);
-  const [currentTime, setCurrentTime] = useState(new Date());
-
-  const isReady = (coords !== undefined && weather !== null) || !!gpsError;
-
-  const { recommendations: smartRecs, loading } = useRecommendations(
-    coords?.lat || 10.762622, 
-    coords?.lng || 106.660172, 
-    currentTime.getHours(), 
-    weather?.code || 'Clear',
-    isReady
-  );
-
+  const { coords } = useGeoLocation();
   const { isAuthenticated, user } = useAuthStore();
-  const { recommendations: collaborativeRecs } = useCollaborativeRecommendations(user?.user_id, isAuthenticated);
+  const { favorites, loading, fetchFavorites } = useFavoriteStore();
   const navigate = useNavigate();
-  const [results, setResults] = useState<RecommendationResult[]>([]);
 
   useEffect(() => {
-    let timeoutId: any;
-    if (coords) {
-       fetch(`https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lng}&current_weather=true`)
-        .then(res => res.json())
-        .then(data => {
-            if (data.current_weather) {
-                const code = data.current_weather.weathercode;
-                let label = "Nắng ráo";
-                let aiCode = "Clear";
-                if (code >= 51) { label = "Có mưa"; aiCode = "Rainy"; }
-                else if (code >= 1 && code <= 3) { label = "Nhiều mây"; aiCode = "Cloudy"; }
-                else if (code >= 45 && code <= 48) { label = "Sương mù"; aiCode = "Cloudy"; }
-                
-                setWeather({ temp: Math.round(data.current_weather.temperature), label, code: aiCode });
-            }
-        }).catch(() => {
-            setWeather({ temp: 28, label: 'Nắng ráo', code: 'Clear' });
-        });
-    } else if (gpsError) {
-        setWeather({ temp: 28, label: 'Nắng ráo', code: 'Clear' });
+    if (isAuthenticated && user?.user_id) {
+      fetchFavorites(user.user_id);
     }
+  }, [isAuthenticated, user, fetchFavorites]);
 
-    // Force isReady after 3 seconds if still loading
-    timeoutId = setTimeout(() => {
-        if (!weather) {
-            console.log("Weather fetch timeout - using default");
-            setWeather({ temp: 28, label: 'Nắng ráo', code: 'Clear' });
-        }
-    }, 3000);
+  // Map favorites list to Location array
+  const favoriteLocations = favorites
+    .map((fav) => fav.location)
+    .filter((loc) => !!loc);
 
-    return () => clearTimeout(timeoutId);
-  }, [coords, gpsError]);
-
-  useEffect(() => {
-    const source = (isAuthenticated && collaborativeRecs?.length > 0) ? collaborativeRecs : smartRecs;
-    if (source && Array.isArray(source)) {
-      setResults(source.map((loc) => ({
-        location: loc,
-        similarity: loc?.match_score
-          ? (loc.match_score > 1 ? loc.match_score / 100 : loc.match_score)
-          : 0
-      })).filter(r => r.location));
-    }
-  }, [smartRecs, collaborativeRecs, isAuthenticated]);
-
-  if (!isAuthenticated && !loading) {
+  if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pt-32 pb-20 flex flex-col items-center justify-center container mx-auto px-4">
-          <div className="bg-white dark:bg-slate-900 p-12 rounded-[3rem] shadow-2xl border border-slate-100 dark:border-slate-800 text-center max-w-xl">
-              <div className="w-20 h-20 bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-3xl flex items-center justify-center mx-auto mb-8">
-                  <Compass className="w-10 h-10" />
+      <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 font-sans">
+          <div className="bg-white dark:bg-slate-900 p-12 rounded-[2.5rem] shadow-xl border border-slate-200/60 dark:border-slate-800 text-center max-w-2xl relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500" />
+              <div className="w-20 h-20 bg-orange-50 dark:bg-orange-950/20 text-orange-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-inner">
+                  <Heart className="w-10 h-10 text-orange-500 animate-pulse" />
               </div>
-              <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-4 tracking-tight uppercase">Khám phá hành trình riêng của bạn</h2>
-              <p className="text-slate-500 dark:text-slate-400 mb-10 font-medium leading-relaxed">Đăng nhập ngay để hệ thống có thể phân tích sở thích và lịch sử du lịch của bạn, từ đó gợi ý những điểm đến tuyệt vời nhất.</p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <button onClick={() => navigate('/login')} className="flex items-center justify-center gap-2 px-8 py-4 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-primary-700 transition-all active:scale-95 shadow-lg">
+              <h2 className="text-3xl font-black text-slate-850 dark:text-white mb-4">Danh sách Yêu thích của bạn</h2>
+              <p className="text-sm text-slate-450 dark:text-slate-400 mb-8 font-semibold leading-relaxed max-w-lg mx-auto">
+                Đăng nhập ngay để lưu lại các địa điểm du lịch, ẩm thực yêu thích và đồng bộ hành trình cá nhân trên mọi thiết bị.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3.5 justify-center">
+                  <button onClick={() => navigate('/login')} className="flex items-center justify-center gap-2 px-8 py-4 bg-slate-900 dark:bg-white dark:text-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg active:scale-95 transition-all">
                       <LogIn className="w-4 h-4" /> Đăng nhập ngay
                   </button>
-                  <button onClick={() => navigate('/register')} className="px-8 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-slate-200 active:scale-95 transition-all">
-                      Đăng ký tài khoản
+                  <button onClick={() => navigate('/register')} className="px-8 py-4 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-200/60 dark:hover:bg-slate-700 active:scale-95 transition-all">
+                      Tạo tài khoản mới
                   </button>
               </div>
           </div>
@@ -97,153 +56,82 @@ export default function Recommend() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFFEFA] dark:bg-slate-950 pt-32 pb-20 relative">
-      <div className="max-w-7xl mx-auto px-4">
-        {/* Storytelling Header */}
-        <div className="text-center max-w-4xl mx-auto mb-16 space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-            <div className="inline-flex items-center justify-center p-4 bg-primary-50 dark:bg-primary-900/20 text-primary-600 rounded-3xl mb-4">
-                <Compass className="w-8 h-8" />
-            </div>
-            <h1 className="text-5xl md:text-7xl font-serif font-black text-slate-900 dark:text-white leading-[1.1]">
-              Chào {user?.full_name}, <br/> 
-              <span className="text-gradient">bạn muốn đi đâu hôm nay?</span>
-            </h1>
-            <p className="text-xl text-slate-500 dark:text-slate-400 max-w-2xl mx-auto font-medium leading-relaxed">
-              {results.some(r => r.similarity && r.similarity > 0.1) 
-                ? "Dựa trên sở thích, thời gian và ngữ cảnh, đây là những gợi ý phù hợp dành riêng cho bạn (Sử dụng kết hợp Content-based Filtering và Collaborative Filtering)."
-                : "Vì bạn chưa thích hay xem nhiều địa điểm nên tôi sẽ gợi ý những điểm đến nổi bật nhất hiện nay:"}
-            </p>
+    <div className="space-y-8 font-sans pb-16">
+      {/* Premium Hero Banner */}
+      <div className="relative rounded-[2.5rem] overflow-hidden bg-slate-900 h-[220px] flex items-center p-8 md:p-12 shadow-xl">
+        <div className="absolute inset-0">
+          <img 
+            src="https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=2070&auto=format&fit=crop" 
+            className="w-full h-full object-cover opacity-50"
+            alt="Scenic lake background"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-900/70 to-transparent" />
         </div>
-
-        {/* Algorithm Insights Banner (Academic Alignment) */}
-        <div className="max-w-5xl mx-auto mb-24 bg-white dark:bg-slate-900 p-8 md:p-12 rounded-[3.5rem] border border-slate-100 dark:border-slate-800 airy-shadow animate-in slide-in-from-bottom-12 duration-1000">
-            <div className="flex flex-col md:flex-row items-center gap-12">
-                <div className="flex-1 space-y-6">
-                   <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-primary-600 mb-4">Khám phá Điểm đến</h3>
-                   <h2 className="text-3xl font-serif font-black text-slate-900 dark:text-white">Cơ chế tính điểm đề xuất</h2>
-                   <p className="text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                       Chúng tôi sử dụng thuật toán <span className="font-bold text-slate-900 dark:text-white">Content-Based Filtering</span> kết hợp với <span className="font-bold text-slate-900 dark:text-white">Cosine Similarity</span> để tìm ra những địa điểm khớp nhất với hành vi của bạn.
-                   </p>
-                </div>
-                <div className="grid grid-cols-3 gap-8">
-                    <div className="text-center group">
-                        <div className="w-16 h-16 rounded-[2rem] bg-primary-50 dark:bg-primary-900/40 text-primary-600 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform airy-shadow">
-                            <Compass className="w-8 h-8" />
-                        </div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Sở thích (CBF)</p>
-                        <p className="text-xl font-serif font-black text-slate-900 dark:text-white">60%</p>
-                    </div>
-                    <div className="text-center group">
-                        <div className="w-16 h-16 rounded-[2rem] bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform airy-shadow">
-                            <MapPin className="w-8 h-8" />
-                        </div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Khoảng cách</p>
-                        <p className="text-xl font-serif font-black text-slate-900 dark:text-white">30%</p>
-                    </div>
-                    <div className="text-center group">
-                        <div className="w-16 h-16 rounded-[2rem] bg-amber-50 dark:bg-amber-900/40 text-amber-600 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform airy-shadow">
-                            <Clock className="w-8 h-8" />
-                        </div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Ngữ cảnh</p>
-                        <p className="text-xl font-serif font-black text-slate-900 dark:text-white">10%</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div className="space-y-32">
-          {loading ? (
-              <div className="flex flex-col items-center justify-center py-32 space-y-4">
-                <div className="w-12 h-12 border-4 border-slate-200 border-t-primary-600 rounded-full animate-spin"></div>
-                <p className="font-bold text-slate-400 animate-pulse uppercase tracking-widest text-xs">Cảm hứng đang đến...</p>
-              </div>
-          ) : results.length > 0 ? (
-            <>
-              {/* Narrative Discovery Groups */}
-              <div className="space-y-40">
-                {/* Group 1: Trốn khỏi sự ồn ào */}
-                <section className="text-reveal">
-                  <div className="mb-16">
-                    <h2 className="text-5xl font-serif italic text-slate-900 dark:text-white mb-4">“Trốn khỏi sự ồn ào.”</h2>
-                    <p className="text-lg text-slate-500 font-medium">Những không gian tĩnh lặng dành cho tâm hồn bạn.</p>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-16">
-                    {results.slice(0, 3).map((item, idx) => (
-                      <LocationCard 
-                        key={`relax-${idx}`} 
-                        location={item.location} 
-                        userLat={coords?.lat} 
-                        userLng={coords?.lng} 
-                      />
-                    ))}
-                  </div>
-                </section>
-
-                {/* Group 2: Một ngày chậm lại */}
-                <section className="bg-primary-50/30 dark:bg-primary-900/10 -mx-4 md:-mx-12 px-4 md:px-12 py-32 rounded-[5rem] text-reveal">
-                  <div className="mb-16">
-                    <h2 className="text-5xl font-serif italic text-slate-900 dark:text-white mb-4">“Một ngày chậm lại.”</h2>
-                    <p className="text-lg text-slate-500 font-medium">Khám phá văn hóa và những góc nhỏ đầy tính nghệ thuật.</p>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-16">
-                    {results.slice(3, 6).map((item, idx) => (
-                      <LocationCard 
-                        key={`culture-${idx}`} 
-                        location={item.location} 
-                        userLat={coords?.lat} 
-                        userLng={coords?.lng} 
-                        className="shadow-2xl"
-                      />
-                    ))}
-                  </div>
-                </section>
-
-                {/* Group 3: Hành trình ngẫu hứng */}
-                <section className="text-reveal">
-                  <div className="mb-16">
-                    <h2 className="text-5xl font-serif italic text-slate-900 dark:text-white mb-4">“Hành trình ngẫu hứng.”</h2>
-                    <p className="text-lg text-slate-500 font-medium">Gợi ý cho những chuyến đi ngắn ngày đầy hứng khởi.</p>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-                    {results.slice(6).map((item, idx) => (
-                      <LocationCard 
-                        key={`weekend-${idx}`} 
-                        location={item.location} 
-                        userLat={coords?.lat} 
-                        userLng={coords?.lng} 
-                      />
-                    ))}
-                  </div>
-                </section>
-              </div>
-
-              {/* Map Preview (Subtle at bottom) */}
-              <div className="mt-40 bg-slate-900 dark:bg-slate-900 rounded-[5rem] p-12 text-white">
-                  <div className="flex flex-col md:flex-row items-center justify-between mb-12 gap-8">
-                    <div className="max-w-md text-center md:text-left">
-                      <h3 className="text-3xl font-black mb-4">Live Discovery Map</h3>
-                      <p className="text-white/60 font-medium">Tất cả các điểm đến đang chờ bạn khám phá trên bản đồ trực quan.</p>
-                    </div>
-                  </div>
-                  <div className="h-[500px] rounded-[4rem] overflow-hidden border border-white/10 shadow-2xl">
-                    <MapView locations={results.map(r => r.location)} />
-                  </div>
-              </div>
-            </>
-          ) : (
-                <div className="text-center py-40 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800">
-                    <div className="w-24 h-24 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-8">
-                        <MapPin className="w-12 h-12 text-slate-400" />
-                    </div>
-                    <h3 className="text-3xl font-bold text-slate-900 dark:text-white mb-4">Đang chuẩn bị gợi ý cho bạn...</h3>
-                    <p className="text-slate-500 max-w-sm mx-auto font-medium text-lg leading-relaxed">
-                        Hệ thống đang thu thập những điểm đến hấp dẫn nhất. Vui lòng quay lại sau giây lát hoặc thử khám phá các khu vực khác.
-                    </p>
-                    <button onClick={() => navigate('/explore')} className="mt-8 px-8 py-3 bg-primary-600 text-white rounded-xl font-bold">Khám phá ngay</button>
-                </div>
-          )}
+        <div className="relative z-10 max-w-2xl">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white text-[10px] font-black uppercase tracking-wider mb-4">
+            <Heart className="w-3 h-3 text-orange-500 fill-orange-500" /> Điểm đến của tôi
+          </div>
+          <h1 className="text-3xl md:text-5xl font-black text-white mb-2">
+            Địa điểm <span className="text-orange-500">Yêu thích.</span>
+          </h1>
+          <p className="text-sm text-slate-300 font-semibold max-w-xl">
+            Lưu giữ và theo dõi danh sách các danh lam, quán ăn, khách sạn bạn đã yêu thích trên bản đồ hành trình cá nhân.
+          </p>
         </div>
       </div>
+
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-32 bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-200/60 dark:border-slate-800">
+          <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+          <p className="mt-4 text-slate-500 dark:text-slate-400 font-bold text-sm">Đang tải danh sách yêu thích...</p>
+        </div>
+      ) : favoriteLocations.length > 0 ? (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* Left Side: Map of favorited locations (5 Columns) */}
+          <div className="lg:col-span-5 lg:sticky lg:top-24 space-y-4">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-[2.5rem] p-5 shadow-sm space-y-3">
+              <div className="flex justify-between items-center px-1">
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-white">Bản đồ hành trình yêu thích</h3>
+                <span className="text-[10px] font-black uppercase tracking-wider text-orange-500">{favoriteLocations.length} địa điểm</span>
+              </div>
+              <div className="h-[450px] w-full rounded-3xl overflow-hidden relative z-0">
+                <MapView locations={favoriteLocations} />
+              </div>
+            </div>
+          </div>
+
+          {/* Right Side: Grid of Location Cards (7 Columns) */}
+          <div className="lg:col-span-7">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {favoriteLocations.map((location) => (
+                <LocationCard 
+                  key={location.location_id}
+                  location={location} 
+                  userLat={coords?.lat}
+                  userLng={coords?.lng}
+                  className="w-full h-full"
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200/60 dark:border-slate-800 shadow-sm max-w-xl mx-auto">
+          <div className="w-16 h-16 bg-orange-500/10 text-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
+            <BadgeAlert className="w-6 h-6 text-orange-500" />
+          </div>
+          <h3 className="text-lg font-black text-slate-800 dark:text-white">Danh sách yêu thích trống</h3>
+          <p className="text-xs text-slate-450 dark:text-slate-500 max-w-sm mx-auto mt-2 font-semibold leading-relaxed">
+            Bạn chưa lưu địa điểm nào vào danh sách yêu thích. Hãy duyệt qua các địa điểm du lịch tuyệt đẹp để tạo bộ sưu tập của riêng mình!
+          </p>
+          <button
+            onClick={() => navigate('/explore')}
+            className="mt-6 px-6 py-3.5 bg-orange-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-orange-650 transition duration-300"
+          >
+            Đến trang Khám phá ngay
+          </button>
+        </div>
+      )}
     </div>
   );
 }

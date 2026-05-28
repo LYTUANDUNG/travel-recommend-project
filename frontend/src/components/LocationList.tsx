@@ -19,7 +19,7 @@ export default function LocationList({ title, locations }: LocationListProps) {
                     <LocationCard
                         key={loc.location_id}
                         location={loc}
-                        onClick={() => navigate(`/detail/${loc.location_id}`)}
+                        onClick={() => navigate(`/location/${loc.location_id}`)}
                     />
                 ))}
             </div>

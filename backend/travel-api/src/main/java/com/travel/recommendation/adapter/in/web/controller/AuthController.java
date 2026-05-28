@@ -54,6 +54,7 @@ public class AuthController {
                 .fullName(request.getFull_name())
                 .birthYear(request.getBirth_year())
                 .city(request.getProvince())
+                .interests(request.getInterests() != null ? String.join(",", request.getInterests()) : null)
                 .build();
         user.setRole(User.Role.USER);
         User savedUser = userService.registerUser(user);
@@ -115,7 +116,7 @@ public class AuthController {
                 .birth_year(user.getBirthYear())
                 .nationality(user.getNationality())
                 .is_active(user.getIsActive())
-                .interests(Collections.emptyList()) // Fetch from actual relations later
+                .interests(user.getInterests() != null ? java.util.Arrays.asList(user.getInterests().split(",")) : java.util.Collections.emptyList())
                 .build();
     }
 }

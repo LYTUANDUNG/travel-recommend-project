@@ -8,7 +8,9 @@ import com.travel.recommendation.adapter.out.persistence.UserInterestProfileRepo
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalTime;
 import java.util.*;
@@ -16,7 +18,7 @@ import java.util.stream.Collectors;
 
 /**
  * THESIS: Content-Based Recommendation with Academic Scoring System.
- * Formula: Total Score = (0.6 * SimilarityScore) + (0.3 * DistanceScore) + (0.1 * ContextScore)
+ * Formula: Total Score = SimilarityScore
  */
 @Service
 @RequiredArgsConstructor
@@ -24,65 +26,58 @@ import java.util.stream.Collectors;
 public class RecommendationService {
 
     private final LocationRepository locationRepository;
-    private final UserInterestProfileRepository profileRepository;
+    private final @Lazy UserInterestProfileRepository profileRepository;
+    private final @Lazy com.travel.recommendation.adapter.out.persistence.UserRepository userRepository;
     private final AiRecommendationClient aiRecommendationClient;
     private final ContentRecommendationService contentRecommendationService;
     private final CollaborativeRecommendationService collaborativeRecommendationService;
-    private final ContextRecommendationService contextRecommendationService;
     private final VisitTimeInsightService visitTimeInsightService;
 
-    private static final double WEIGHT_CONTENT = 0.6;
-    private static final double WEIGHT_DISTANCE = 0.3;
-    private static final double WEIGHT_CONTEXT = 0.1;
-
-    public List<LocationResponse> getRecommendations(Long userId, Double lat, Double lng, String weather) {
+    public List<LocationResponse> getRecommendations(Long userId) {
         List<Location> allLocations = locationRepository.findAll();
-        List<UserInterestProfile> profiles = userId != null ? profileRepository.findByIdUserId(userId) : Collections.emptyList();
+        List<UserInterestProfile> profiles = userId != null ? profileRepository.findByUserId(userId) : Collections.emptyList();
+        
+        final String userInterests = userId != null 
+                ? userRepository.findById(userId).map(com.travel.recommendation.domain.entity.User::getInterests).orElse(null) 
+                : null;
         
         // COLD START: Fallback to Guest (Popularity) if no profile data
         boolean isColdStart = profiles.isEmpty();
-        
-        int currentHour = LocalTime.now().getHour();
-
         if (allLocations.isEmpty()) return List.of();
 
         return allLocations.stream()
-                .map(loc -> calculateCompleteScore(loc, profiles, lat, lng, currentHour, weather, isColdStart))
+                .map(loc -> calculateCompleteScore(loc, profiles, userInterests, isColdStart))
                 .sorted(Comparator.comparingDouble(LocationResponse::getMatchScore).reversed())
                 .limit(20)
                 .collect(Collectors.toList());
     }
 
-    private LocationResponse calculateCompleteScore(Location loc, List<UserInterestProfile> profiles, 
-                                                    Double userLat, Double userLng, 
-                                                    int currentHour, String weather, boolean isColdStart) {
+    private LocationResponse calculateCompleteScore(Location loc, List<UserInterestProfile> profiles, String userInterests, boolean isColdStart) {
         
         // 1. CONTENT SIMILARITY (Cosine Similarity approximation via Tag Weighted Overlap)
-        // Thesis Requirement: Vector-based matching
         List<String> matchedTags = new ArrayList<>();
         double similarityScore = contentRecommendationService.similarityScore(loc, profiles, matchedTags, isColdStart);
 
-        // 2. DISTANCE SCORE (Inverse Distance)
-        // Formula: 1 / (1 + distance_km) - Ensures closer points score higher
-        double distanceScore = contextRecommendationService.distanceScore(userLat, userLng, loc);
+        // 2. EXPLICIT INTEREST BOOST (Thesis Requirement: Preference Handling)
+        double interestScore = 0.0;
+        if (userInterests != null && loc.getCategory() != null) {
+            if (userInterests.toLowerCase().contains(loc.getCategory().getName().toLowerCase())) {
+                interestScore = 0.5; // Fixed boost for matching declared interest
+            }
+        }
 
-        // 3. CONTEXT SCORE (Time & Weather Awareness)
-        double contextScore = contextRecommendationService.contextScore(loc, currentHour, weather);
-
-        // FINAL ACADEMIC SCORE (Weighted Average)
-        double finalScore = (WEIGHT_CONTENT * similarityScore) + 
-                            (WEIGHT_DISTANCE * distanceScore) + 
-                            (WEIGHT_CONTEXT * contextScore);
+        // FINAL ACADEMIC SCORE
+        double finalScore = (similarityScore * 0.7) + (interestScore * 0.3);
 
         LocationResponse response = mapToResponse(loc);
         response.setMatchScore(finalScore);
         response.setSimilarityScore(similarityScore);
-        response.setDistanceScore(distanceScore);
-        response.setContextScore(contextScore);
+        response.setDistanceScore(0.0);
+        response.setContextScore(0.0);
         response.setMatchedTags(matchedTags);
         response.setRecommendationReason(String.format(
-                "Content %.0f%% + Distance %.0f%% + Context %.0f%%",
-                similarityScore * 100.0, distanceScore * 100.0, contextScore * 100.0
+                "Content %.0f%%",
+                similarityScore * 100.0
         ));
         
         return response;
@@ -94,15 +89,14 @@ public class RecommendationService {
         if (!rankedItems.isEmpty()) {
             return collaborativeRecommendationService.mapAiRankedItems(rankedItems, this::findResponsesByIds);
         }
-        return getRecommendations(userId, null, null, null).stream().limit(10).collect(Collectors.toList());
+        return getRecommendations(userId).stream().limit(10).collect(Collectors.toList());
     }
 
-    public List<LocationResponse> getContextRecommendations(Double lat, Double lng, Integer hour, String weather) {
-        return getRecommendations(null, lat, lng, weather).stream().limit(10).collect(Collectors.toList());
-    }
 
-    public List<LocationResponse> getContentRecommendations(Long locationId, int topN) {
-        List<AiRecommendationClient.AiRankedItem> rankedItems = aiRecommendationClient.content(locationId, topN);
+
+    @Transactional(readOnly = true)
+    public List<LocationResponse> getContentRecommendations(Long locationId, int topN, Long userId) {
+        List<AiRecommendationClient.AiRankedItem> rankedItems = aiRecommendationClient.content(locationId, topN, userId);
         if (!rankedItems.isEmpty()) {
             return collaborativeRecommendationService.mapAiRankedItems(rankedItems, this::findResponsesByIds);
         }
@@ -115,7 +109,7 @@ public class RecommendationService {
         List<UserInterestProfile> profiles = Collections.emptyList();
 
         return contentRecommendationService.fallbackByCategory(current, allLocations, topN,
-                loc -> calculateCompleteScore(loc, profiles, null, null, LocalTime.now().getHour(), null, true))
+                loc -> calculateCompleteScore(loc, profiles, null, true))
                 .stream()
                 .sorted(Comparator.comparingDouble(LocationResponse::getMatchScore).reversed())
                 .toList();
@@ -123,7 +117,7 @@ public class RecommendationService {
 
     @Cacheable(value = "guestRecommendations", key = "'top10'", sync = true)
     public List<LocationResponse> getGuestRecommendations() {
-        return getRecommendations(null, null, null, null);
+        return getRecommendations(null);
     }
 
     private LocationResponse mapToResponse(Location loc) {
@@ -138,6 +132,7 @@ public class RecommendationService {
                 .longitude(loc.getLongitude())
                 .averageRating(loc.getAverageRating())
                 .totalReviews(loc.getTotalReviews())
+                .viewCount(loc.getViewCount())
                 .thumbnailUrl(loc.getThumbnailUrl())
                 .categoryId(loc.getCategory() != null ? loc.getCategory().getId() : null)
                 .categoryName(loc.getCategory() != null ? loc.getCategory().getName() : null)

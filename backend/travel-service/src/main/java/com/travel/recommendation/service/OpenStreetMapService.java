@@ -36,23 +36,23 @@ public class OpenStreetMapService {
 
     public List<LocationResponse> scanLocations(Double lat, Double lng, Double radiusInMeters) {
         String query = String.format(Locale.US,
-            "[out:json][timeout:90];" +
-            "(" +
-            "  node[\"tourism\"](around:%f,%f,%f);" +
-            "  node[\"historic\"](around:%f,%f,%f);" +
-            "  node[\"amenity\"~\"restaurant|food_court|place_of_worship|theatre|cinema|marketplace\"](around:%f,%f,%f);" +
-            "  node[\"leisure\"~\"park|nature_reserve|resort\"](around:%f,%f,%f);" +
-            "  node[\"natural\"~\"beach|peak|waterfall|cave_entrance\"](around:%f,%f,%f);" +
-            "  node[\"shop\"~\"mall|department_store\"](around:%f,%f,%f);" +
-            ");" +
-            "out body;",
-            radiusInMeters, lat, lng,
-            radiusInMeters, lat, lng,
-            radiusInMeters, lat, lng,
-            radiusInMeters, lat, lng,
-            radiusInMeters, lat, lng,
-            radiusInMeters, lat, lng
-        );
+                "[out:json][timeout:90];" +
+                        "(" +
+                        "  node[\"tourism\"](around:%f,%f,%f);" +
+                        "  node[\"historic\"](around:%f,%f,%f);" +
+                        "  node[\"amenity\"~\"restaurant|food_court|place_of_worship|theatre|cinema|marketplace\"](around:%f,%f,%f);"
+                        +
+                        "  node[\"leisure\"~\"park|nature_reserve|resort\"](around:%f,%f,%f);" +
+                        "  node[\"natural\"~\"beach|peak|waterfall|cave_entrance\"](around:%f,%f,%f);" +
+                        "  node[\"shop\"~\"mall|department_store\"](around:%f,%f,%f);" +
+                        ");" +
+                        "out body;",
+                radiusInMeters, lat, lng,
+                radiusInMeters, lat, lng,
+                radiusInMeters, lat, lng,
+                radiusInMeters, lat, lng,
+                radiusInMeters, lat, lng,
+                radiusInMeters, lat, lng);
 
         log.info("Querying Overpass API with lat={}, lng={}, radius={}", lat, lng, radiusInMeters);
 
@@ -67,32 +67,36 @@ public class OpenStreetMapService {
 
             List<LocationResponse> locations = new ArrayList<>();
             for (JsonNode element : elements) {
-                if (!element.has("tags")) continue;
+                if (!element.has("tags"))
+                    continue;
 
                 JsonNode tags = element.get("tags");
-                String name = tags.has("name") ? tags.get("name").asText() : tags.has("name:en") ? tags.get("name:en").asText() : "Unnamed Location";
-                
+                String name = tags.has("name") ? tags.get("name").asText()
+                        : tags.has("name:en") ? tags.get("name:en").asText() : "Unnamed Location";
+
                 Double eLat = element.has("lat") ? element.get("lat").asDouble() : null;
                 Double eLng = element.has("lon") ? element.get("lon").asDouble() : null;
 
-                if (eLat == null || eLng == null) continue;
+                if (eLat == null || eLng == null)
+                    continue;
 
                 String address = tags.has("addr:street") ? tags.get("addr:street").asText() : "";
-                if (tags.has("addr:housenumber")) address = tags.get("addr:housenumber").asText() + " " + address;
-                
+                if (tags.has("addr:housenumber"))
+                    address = tags.get("addr:housenumber").asText() + " " + address;
+
                 // Structured Address Extraction
-                String ward = tags.has("addr:suburb") ? tags.get("addr:suburb").asText() : 
-                              tags.has("suburb") ? tags.get("suburb").asText() : "";
-                String district = tags.has("addr:district") ? tags.get("addr:district").asText() : 
-                                 tags.has("district") ? tags.get("district").asText() : "";
-                String province = tags.has("addr:city") ? tags.get("addr:city").asText() : 
-                                 tags.has("addr:province") ? tags.get("addr:province").asText() : "Việt Nam";
-                
+                String ward = tags.has("addr:suburb") ? tags.get("addr:suburb").asText()
+                        : tags.has("suburb") ? tags.get("suburb").asText() : "";
+                String district = tags.has("addr:district") ? tags.get("addr:district").asText()
+                        : tags.has("district") ? tags.get("district").asText() : "";
+                String province = tags.has("addr:city") ? tags.get("addr:city").asText()
+                        : tags.has("addr:province") ? tags.get("addr:province").asText() : "Việt Nam";
+
                 String categoryName = "Khám phá";
                 String thumbnailUrl = "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&q=80";
                 Integer priceLevel = 1; // Default
                 String priceRangeStr = "Dưới 100k";
-                
+
                 if (tags.has("amenity")) {
                     String amenity = tags.get("amenity").asText();
                     if (amenity.matches("restaurant|food_court|cafe|bar")) {
@@ -135,15 +139,16 @@ public class OpenStreetMapService {
                     }
                 }
 
-                String desc = tags.has("description") ? tags.get("description").asText() : 
-                    String.format("Địa điểm %s nổi bật tại khu vực này. Một địa điểm lý tưởng để bạn bổ sung vào lịch trình trải nghiệm của mình.", categoryName.toLowerCase());
+                String desc = tags.has("description") ? tags.get("description").asText()
+                        : String.format(
+                                "Địa điểm %s nổi bật tại khu vực này. Một địa điểm lý tưởng để bạn bổ sung vào lịch trình trải nghiệm của mình.",
+                                categoryName.toLowerCase());
 
                 LocationResponse loc = LocationResponse.builder()
                         .name(name)
                         .latitude(eLat)
                         .longitude(eLng)
                         .address(address)
-                        .ward(ward)
                         .district(district)
                         .province(province)
                         .description(desc)
@@ -154,7 +159,7 @@ public class OpenStreetMapService {
                         .priceLevel(priceLevel)
                         .priceRangeStr(priceRangeStr)
                         .build();
-                
+
                 locations.add(loc);
             }
             return locations;

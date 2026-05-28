@@ -34,6 +34,11 @@ public class LocationController {
                 .orElse(ResponseEntity.ok(ApiResponse.error("Not found")));
     }
 
+    @GetMapping("/batch")
+    public ResponseEntity<ApiResponse<List<LocationResponse>>> getLocationsByIds(@RequestParam List<Long> ids) {
+        return ResponseEntity.ok(ApiResponse.success(locationService.getLocationsByIds(ids)));
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<LocationResponse>> createLocation(@Valid @RequestBody LocationRequest locationRequest) {
@@ -80,14 +85,31 @@ public class LocationController {
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) Double lat,
             @RequestParam(required = false) Double lng) {
-        return ResponseEntity.ok(ApiResponse.success(locationService.getRecommendations(userId, lat, lng)));
+        return ResponseEntity.ok(ApiResponse.success(recommendationService.getRecommendations(userId)));
     }
 
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     @GetMapping("/{id}/recommendations")
     public ResponseEntity<ApiResponse<List<LocationResponse>>> getRecommendationsByContent(
             @PathVariable Long id, 
             @RequestParam(defaultValue = "5") int topN) {
-        return ResponseEntity.ok(ApiResponse.success(recommendationService.getContentRecommendations(id, topN)));
+            
+        Long userId = null;
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && !(auth instanceof org.springframework.security.authentication.AnonymousAuthenticationToken)) {
+            Object principal = auth.getPrincipal();
+            // If the principal is our User entity (common in Spring Security with custom UserDetailsService)
+            if (principal instanceof com.travel.recommendation.domain.entity.User) {
+                userId = ((com.travel.recommendation.domain.entity.User) principal).getId();
+            } else {
+                try {
+                    // Fallback to name (subject)
+                    userId = Long.valueOf(auth.getName());
+                } catch (Exception ignored) {}
+            }
+        }
+        
+        return ResponseEntity.ok(ApiResponse.success(recommendationService.getContentRecommendations(id, topN, userId)));
     }
 
     @GetMapping("/recommendations/smart")
@@ -98,11 +120,6 @@ public class LocationController {
             @RequestParam(required = false) String weather) {
             
         org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        
-        // 1. Context-Aware AI (from OSM & Python) -> Tích hợp cao cấp Luận Văn
-        if (lat != null && lng != null) {
-            return ResponseEntity.ok(ApiResponse.success(recommendationService.getContextRecommendations(lat, lng, hour, weather)));
-        }
         
         // 2. Collaborative Filtering (Registered User)
         if (auth != null && auth.isAuthenticated() && !(auth instanceof org.springframework.security.authentication.AnonymousAuthenticationToken)) {

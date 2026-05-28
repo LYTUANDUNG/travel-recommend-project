@@ -19,7 +19,7 @@ public class LocationRequest {
     @NotBlank(message = "Description is required")
     private String description;
     private String address;
-    private String ward;
+
     private String district;
     private String province;
     @NotNull(message = "Latitude is required")

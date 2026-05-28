@@ -50,7 +50,7 @@ public class CategoryController {
                 .map(category -> {
                     category.setName(categoryDetails.getName());
                     category.setDescription(categoryDetails.getDescription());
-                    category.setSlug(categoryDetails.getSlug());
+
                     return ResponseEntity.ok(ApiResponse.success(categoryRepository.save(category)));
                 })
                 .orElse(ResponseEntity.notFound().build());

@@ -73,7 +73,7 @@ public class ReviewService {
                 .rating(reviewDto.getRating())
                 .comment(reviewDto.getComment())
                 .visitDate(reviewDto.getVisitDate())
-                .tripType(reviewDto.getTripType())
+
                 .imagesJson(toJson(reviewDto.getImages()))
                 .verifyStatus(Review.VerifyStatus.APPROVED)
                 .isEdited(false)
@@ -81,6 +81,7 @@ public class ReviewService {
 
         try {
             Review savedReview = reviewRepository.save(review);
+            visitRequestService.completeApprovedVisitAfterReview(user.getId(), location.getId());
             locationService.syncStats(savedReview.getLocation().getId());
 //            log.info("Successfully saved review (ID: {}) and synced stats.", savedReview.getId());
             return mapToDto(savedReview);
@@ -127,6 +128,12 @@ public class ReviewService {
         return mapToDto(saved);
     }
 
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<ReviewDto> findPaginated(String query, org.springframework.data.domain.Pageable pageable) {
+        String searchQuery = (query != null && !query.trim().isEmpty()) ? "%" + query.trim() + "%" : null;
+        return reviewRepository.searchReviews(searchQuery, pageable).map(this::mapToDto);
+    }
+
     public ReviewDto mapToDto(Review review) {
         return ReviewDto.builder()
                 .reviewId(review.getId())
@@ -140,7 +147,7 @@ public class ReviewService {
                 .images(fromJson(review.getImagesJson()))
                 .verifyStatus(review.getVerifyStatus() != null ? review.getVerifyStatus().name() : null)
                 .visitDate(review.getVisitDate())
-                .tripType(review.getTripType())
+
                 .isEdited(Boolean.TRUE.equals(review.getIsEdited()))
                 .createdAt(review.getCreatedAt())
                 .build();

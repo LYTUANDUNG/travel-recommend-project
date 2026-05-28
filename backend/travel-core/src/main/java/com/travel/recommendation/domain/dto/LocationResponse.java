@@ -15,9 +15,9 @@ public class LocationResponse {
     private Long locationId;
     private String name;
     private String description;
-    private String previewExperience;
+
     private String address;
-    private String ward;
+
     private String district;
     private String province;
     private Double latitude;
@@ -32,6 +32,7 @@ public class LocationResponse {
     private List<String> images;
     private Double averageRating;
     private Integer totalReviews;
+    private Integer viewCount;
     private List<TagResponse> tags;
     private Double matchScore;
     private Double similarityScore;

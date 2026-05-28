@@ -13,9 +13,12 @@ interface Props {
   userLng?: number;
   className?: string; // Allow custom classes like 'ring-4'
   onClick?: () => void;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
+  hideMatchBadge?: boolean;
 }
 
-export default function LocationCard({ location, className, onClick, userLat, userLng }: Props) {
+export default function LocationCard({ location, className, onClick, userLat, userLng, onMouseEnter, onMouseLeave, hideMatchBadge }: Props) {
   const { user, isAuthenticated } = useAuthStore();
   const [isFavorited, setIsFavorited] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -25,14 +28,14 @@ export default function LocationCard({ location, className, onClick, userLat, us
   const handleCardClick = () => {
     // Log behavior (Academic data gathering)
     if (isAuthenticated && user) {
-        api.client.post('/behavior/log', {
-            userId: user.user_id,
-            locationId: location.location_id,
-            action: 'CLICK'
+        api.behavior.logAction({
+            user_id: user.user_id,
+            location_id: location.location_id,
+            action: 'VIEW_DETAILS'
         }).catch(() => {});
     }
     
-    navigate(`/detail/${location.location_id}`, { state: { matchScore: location.match_score } });
+    navigate(`/location/${location.location_id}`, { state: { matchScore: location.match_score } });
     if (onClick) onClick();
   };
 
@@ -61,6 +64,13 @@ export default function LocationCard({ location, className, onClick, userLat, us
     const res = await api.favorite.toggle(user.user_id, location.location_id);
     if (res.success) {
       setIsFavorited(res.data);
+      if (res.data) {
+        api.behavior.logAction({
+          user_id: user.user_id,
+          location_id: location.location_id,
+          action: 'ADD_FAVORITE'
+        }).catch(() => {});
+      }
     }
   };
 
@@ -71,6 +81,8 @@ export default function LocationCard({ location, className, onClick, userLat, us
   return (
     <div
       onClick={handleCardClick}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       className={cn(
         "group relative bg-white dark:bg-slate-900 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer border border-slate-200 dark:border-slate-800",
         className
@@ -101,7 +113,7 @@ export default function LocationCard({ location, className, onClick, userLat, us
         </button>
 
         {/* Humanized Match Badge (Tinh tế, không sến) */}
-        {(() => {
+        {!hideMatchBadge && (() => {
           const match = humanizeMatch(location.match_score);
           if (match.level === 'high' || match.level === 'medium') {
             return (

@@ -28,8 +28,11 @@ public class AiRecommendationClient {
         return fetchRankedItems(url);
     }
 
-    public List<AiRankedItem> content(Long locationId, int topN) {
+    public List<AiRankedItem> content(Long locationId, int topN, Long userId) {
         String url = String.format("%s/recommend/content?location_id=%d&top_n=%d", aiServiceBaseUrl, locationId, topN);
+        if (userId != null) {
+            url += "&user_id=" + userId;
+        }
         return fetchRankedItems(url);
     }
 
