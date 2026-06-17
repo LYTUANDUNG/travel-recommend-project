@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/behavior")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class BehaviorController {
 
     private final BehaviorLogService behaviorLogService;

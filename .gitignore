@@ -5,3 +5,16 @@ __pycache__/
 .env
 node_modules/
 .DS_Store
+
+# Temporary scratch folders and draft docx
+scratch/
+docx/
+
+# JMeter logs and test results
+backend/jmeter/*.log
+backend/jmeter/*.csv
+backend/jmeter/*.jtl
+
+# Gradle local caches and build directories
+.gradle/
+**/build/

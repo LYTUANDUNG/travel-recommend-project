@@ -27,6 +27,10 @@ public class VisitTimeInsightService {
     private final ReviewRepository reviewRepository;
     private final RestTemplate restTemplate;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    @org.springframework.context.annotation.Lazy
+    private VisitTimeInsightService self;
+
     public VisitTimeInsight computeBestTime(Location location) {
         try {
             Map<String, Double> scores = new HashMap<>();
@@ -35,7 +39,7 @@ public class VisitTimeInsightService {
             scores.put("evening", 0.0);
 
             Map<String, Double> behavior = behaviorScore(location.getId());
-            Map<String, Double> weather = weatherScore(location.getLatitude(), location.getLongitude());
+            Map<String, Double> weather = self.weatherScore(location.getLatitude(), location.getLongitude());
             Map<String, Double> category = categoryScore(location.getCategory() != null ? location.getCategory().getName() : null);
 
             for (String slot : scores.keySet()) {
@@ -86,8 +90,9 @@ public class VisitTimeInsightService {
         return normalized;
     }
 
-    private Map<String, Double> weatherScore(Double lat, Double lng) {
-        Map<String, Double> fallback = Map.of("morning", 0.6, "afternoon", 0.6, "evening", 0.6);
+    @org.springframework.cache.annotation.Cacheable(value = "weatherScores", key = "T(java.lang.String).format('%.2f_%.2f', #p0, #p1)", unless = "#result == null")
+    public java.util.HashMap<String, Double> weatherScore(Double lat, Double lng) {
+        java.util.HashMap<String, Double> fallback = new java.util.HashMap<>(Map.of("morning", 0.6, "afternoon", 0.6, "evening", 0.6));
         if (lat == null || lng == null) return fallback;
 
         // Circuit Breaker: If we hit a rate limit recently, don't try again
@@ -108,11 +113,11 @@ public class VisitTimeInsightService {
             List<Double> rains = toNumberList(hourly.get("precipitation_probability"));
             if (temps.isEmpty() || rains.isEmpty()) return fallback;
 
-            return Map.of(
+            return new java.util.HashMap<>(Map.of(
                     "morning", computeWeatherSlot(temps, rains, 6, 11),
                     "afternoon", computeWeatherSlot(temps, rains, 12, 17),
                     "evening", computeWeatherSlot(temps, rains, 18, 22)
-            );
+            ));
         } catch (org.springframework.web.client.HttpClientErrorException.TooManyRequests e) {
             log.warn("Weather API Rate Limit hit. Entering cooldown.");
             lastRateLimitTime = System.currentTimeMillis();

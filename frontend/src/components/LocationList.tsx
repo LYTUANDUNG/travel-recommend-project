@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import LocationCard from './LocationCard';
 import type { Location } from '../types';
+import { encodeId } from '../utils/obfuscate';
 
 interface LocationListProps {
     title: string;
@@ -19,7 +20,7 @@ export default function LocationList({ title, locations }: LocationListProps) {
                     <LocationCard
                         key={loc.location_id}
                         location={loc}
-                        onClick={() => navigate(`/location/${loc.location_id}`)}
+                        onClick={() => navigate(`/location/${encodeId(loc.location_id)}`)}
                     />
                 ))}
             </div>

@@ -1,6 +1,7 @@
 package com.travel.recommendation.service;
 
 import com.travel.recommendation.domain.dto.BlogDto;
+import com.travel.recommendation.domain.dto.PageResponse;
 import com.travel.recommendation.domain.entity.Blog;
 import com.travel.recommendation.domain.entity.User;
 import com.travel.recommendation.adapter.out.persistence.BlogRepository;
@@ -22,21 +23,25 @@ public class BlogService {
     private final ApplicationEventPublisher eventPublisher;
     private final NewsletterService newsletterService;
 
-    public Page<BlogDto> getAllBlogs(Pageable pageable) {
-        return blogRepository.findAllWithAuthor(pageable).map(this::mapToDto);
+    @org.springframework.cache.annotation.Cacheable(value = "blogs", key = "'all-' + #p0.pageNumber + '-' + #p0.pageSize", sync = true)
+    public PageResponse<BlogDto> getAllBlogs(Pageable pageable) {
+        return PageResponse.of(blogRepository.findAllWithAuthor(pageable).map(this::mapToDto));
     }
 
-    public Page<BlogDto> getBlogsByCategory(String category, Pageable pageable) {
-        return blogRepository.findByCategoryWithAuthor(Blog.BlogCategory.valueOf(category.toUpperCase()), pageable)
-                .map(this::mapToDto);
+    @org.springframework.cache.annotation.Cacheable(value = "blogs", key = "'cat-' + #p0 + '-' + #p1.pageNumber + '-' + #p1.pageSize", sync = true)
+    public PageResponse<BlogDto> getBlogsByCategory(String category, Pageable pageable) {
+        return PageResponse.of(blogRepository.findByCategoryWithAuthor(Blog.BlogCategory.valueOf(category.toUpperCase()), pageable)
+                .map(this::mapToDto));
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = "blogs", key = "'detail-' + #id", sync = true)
     public BlogDto getBlogById(Long id) {
         return blogRepository.findByIdWithAuthor(id).map(this::mapToDto)
                 .orElseThrow(() -> new RuntimeException("Blog not found"));
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "blogs", allEntries = true)
     public BlogDto createBlog(BlogDto dto, Long authorId) {
         User author = userRepository.findById(authorId)
                 .orElseThrow(() -> new RuntimeException("Author not found"));
@@ -70,6 +75,7 @@ public class BlogService {
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "blogs", allEntries = true)
     public BlogDto updateBlog(Long id, BlogDto dto) {
         Blog blog = blogRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Blog not found"));
@@ -86,6 +92,7 @@ public class BlogService {
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "blogs", allEntries = true)
     public void deleteBlog(Long id) {
         if (!blogRepository.existsById(id)) {
             throw new RuntimeException("Blog not found");

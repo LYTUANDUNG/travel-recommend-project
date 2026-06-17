@@ -44,8 +44,8 @@ export default {
         'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
       },
       fontFamily: {
-        sans: ['Outfit', 'sans-serif'],
-        serif: ['Inter', 'sans-serif'],
+        sans: ['"Be Vietnam Pro"', 'sans-serif'],
+        serif: ['Lora', 'serif'],
       },
     },
   },

@@ -2,10 +2,12 @@ import { useTripStore } from '../store/useTripStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState, useMemo } from 'react';
+import { encodeId } from '../utils/obfuscate';
 import { 
     Trash2, 
     ChevronUp, 
     ChevronDown, 
+    ChevronRight,
     MapPin, 
     Sparkles, 
     Send, 
@@ -38,6 +40,36 @@ export default function TripPlanner() {
   const [fullLocations, setFullLocations] = useState<TravelLocation[]>([]);
   const [route, setRoute] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [pastTrips, setPastTrips] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const uid = user.user_id;
+      api.client.get('/trips/my').then(res => {
+        if (res.data && res.data.success) {
+          setPastTrips(res.data.data);
+        }
+      }).catch(err => {
+        console.error("Lỗi khi tải lịch sử chuyến đi", err);
+      });
+    }
+  }, [isAuthenticated, user]);
+
+  const handleLoadPastTrip = (trip: any) => {
+    const items = (trip.tripLocations || []).map((tl: any, idx: number) => ({
+      location_id: tl.location?.location_id || tl.location?.locationId || tl.locationId,
+      name: tl.location?.name || '',
+      thumbnail_url: tl.location?.thumbnail_url || (tl.location?.images?.[0]),
+      order_index: tl.sortOrder || idx,
+      visit_date: `Ngày ${tl.day || 1}`
+    }));
+    useTripStore.setState({ tripItems: items });
+    setTripTitle(trip.title || 'Hành trình cá nhân VinaTravel');
+    setTripDesc(trip.description || 'Lịch trình tự động tối ưu tuyến đường GIS di chuyển ngắn nhất.');
+    const maxDay = Math.max(...(trip.tripLocations || []).map((tl: any) => tl.day || 1), 3);
+    setTripDaysCount(Math.min(maxDay, 5));
+    alert(`Đã tải thành công chuyến đi "${trip.title || 'Không tên'}" vào bảng lập kế hoạch!`);
+  };
   
   // State for planner
   const [tripTitle, setTripTitle] = useState('Hành trình cá nhân VinaTravel');
@@ -186,14 +218,25 @@ export default function TripPlanner() {
   };
 
   const handleSync = async () => {
-    if (!isAuthenticated) {
-      alert("Vui lòng đăng nhập để lưu hành trình vĩnh viễn!");
+    if (!isAuthenticated || !user) {
+      alert("Vui lòng đăng nhập để lưu hành trình!");
       navigate('/login');
       return;
     }
-    if (user) {
+    const uid = user.user_id;
+    if (uid) {
       setLoading(true);
-      await syncToBackend(user.user_id);
+      await syncToBackend(uid);
+      
+      // Refresh past trips
+      api.client.get('/trips/my').then(res => {
+        if (res.data && res.data.success) {
+          setPastTrips(res.data.data);
+        }
+      }).catch(err => {
+        console.error("Lỗi khi tải lịch sử chuyến đi", err);
+      });
+
       setLoading(false);
       alert("Hành trình cá nhân của bạn đã được đồng bộ trực tiếp lên hệ thống!");
     }
@@ -277,8 +320,7 @@ export default function TripPlanner() {
   }, [tripItems, fullLocations]);
 
   return (
-    <div className="min-h-screen bg-[#F8F9FB] dark:bg-slate-950 pb-20 font-sans">
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="space-y-6 font-sans pb-10 animate-in fade-in duration-500">
         
         {/* Banner Section */}
         <div className="flex flex-col gap-6 mb-8 border-b border-slate-100 dark:border-slate-800 pb-8 animate-in fade-in slide-in-from-top-4 duration-500">
@@ -312,7 +354,7 @@ export default function TripPlanner() {
                   ) : (
                     <Send className="w-3.5 h-3.5 text-white" />
                   )}
-                  Lưu lên máy chủ BE
+                  LƯU
                </button>
             </div>
           </div>
@@ -446,7 +488,7 @@ export default function TripPlanner() {
                 <div className="relative pl-6 sm:pl-16 space-y-6">
                   
                   {/* Timeline connecting track */}
-                  <div className="absolute left-[37px] sm:left-[79px] top-6 bottom-6 w-[2px] bg-slate-200 dark:bg-slate-800/80 pointer-events-none" />
+                  <div className="absolute left-[37px] sm:left-[79px] top-6 bottom-6 w-[2px] bg-gradient-to-b from-orange-500/80 via-amber-500/50 to-orange-500/30 pointer-events-none" />
 
                   {activeItemsSorted.map((item, idx) => {
                     const origIdx = tripItems.findIndex(ti => ti.location_id === item.location_id);
@@ -457,7 +499,7 @@ export default function TripPlanner() {
                       <div key={item.location_id} className="relative group animate-in fade-in slide-in-from-bottom-2 duration-300">
                         
                         {/* Glowing sequence badge indicator */}
-                        <div className="absolute -left-[30px] sm:-left-[48px] top-5 z-10 w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-white dark:border-slate-900 bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center font-black text-xs sm:text-sm shadow-md shadow-orange-500/20 group-hover:scale-110 transition-transform">
+                        <div className="absolute -left-[30px] sm:-left-[48px] top-5 z-10 w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-white dark:border-slate-900 bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center font-serif font-black text-xs sm:text-sm shadow-md shadow-orange-500/20 ring-4 ring-orange-500/10 group-hover:scale-110 transition-transform">
                           {idx + 1}
                         </div>
 
@@ -469,7 +511,7 @@ export default function TripPlanner() {
                               
                               {/* Time selector fields */}
                               <div className="flex flex-col gap-1.5 shrink-0 text-slate-400">
-                                <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-850 px-2 py-1 rounded-xl border border-transparent focus-within:border-orange-500 transition">
+                                <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-855 px-2 py-1 rounded-xl border border-transparent focus-within:border-orange-500 transition">
                                   <Clock className="w-3.5 h-3.5 text-orange-500 shrink-0" />
                                   <input 
                                     type="text" 
@@ -484,7 +526,7 @@ export default function TripPlanner() {
                                     type="text" 
                                     value={time.end}
                                     onChange={(e) => handleTimeChange(item.location_id, 'end', e.target.value)}
-                                    className="w-16 bg-transparent border-none outline-none font-black text-[10px] text-slate-400 text-center"
+                                    className="w-16 bg-transparent border-none outline-none font-black text-[10px] text-slate-450 text-center"
                                   />
                                 </div>
                               </div>
@@ -500,7 +542,7 @@ export default function TripPlanner() {
 
                               {/* Information panel */}
                               <div className="min-w-0 flex-1">
-                                <h4 className="font-black text-sm sm:text-base text-slate-800 dark:text-white truncate group-hover:text-orange-500 transition-colors">
+                                <h4 className="font-serif font-black text-sm sm:text-base text-slate-800 dark:text-white truncate group-hover:text-orange-500 transition-colors">
                                   {item.name}
                                 </h4>
                                 <div className="flex items-center gap-2 mt-1.5 flex-wrap">
@@ -508,7 +550,7 @@ export default function TripPlanner() {
                                     Dự chi: {formatVND(cost)}
                                   </span>
                                   <button 
-                                    onClick={() => navigate(`/location/${item.location_id}`)}
+                                    onClick={() => navigate(`/location/${encodeId(item.location_id)}`)}
                                     className="text-orange-500 hover:text-orange-600 hover:underline text-[10px] font-black uppercase tracking-wider"
                                   >
                                     Chi tiết
@@ -566,13 +608,13 @@ export default function TripPlanner() {
 
                         {/* Dynamic route spacing indicator */}
                         {idx < activeItemsSorted.length - 1 && (
-                          <div className="py-2.5 pl-4 sm:pl-8 flex items-center gap-2 text-[10px] text-slate-400 font-black uppercase tracking-wider">
-                            <div className="w-5 h-5 rounded-full bg-orange-500/10 text-orange-500 flex items-center justify-center shrink-0">
-                              <Car className="w-3 h-3 text-orange-500 animate-pulse" />
+                          <div className="py-3 pl-4 sm:pl-8 flex items-center gap-2.5 text-xs text-slate-450 dark:text-slate-500 font-semibold">
+                            <div className="w-6 h-6 rounded-full bg-orange-500/10 dark:bg-orange-500/20 text-orange-500 flex items-center justify-center shrink-0">
+                              <Car className="w-3.5 h-3.5 text-orange-500 animate-pulse" />
                             </div>
-                            <span>OSRM di chuyển ngắn nhất</span>
-                            <span className="text-slate-250 dark:text-slate-800">|</span>
-                            <span>Phí xe dự tính: {formatVND(travelFeePerStop)}</span>
+                            <span>Tuyến đường OSRM tối ưu</span>
+                            <span className="text-slate-200 dark:text-slate-800">•</span>
+                            <span className="text-slate-500 dark:text-slate-400 font-bold">Chi phí xe Grab: {formatVND(travelFeePerStop)}</span>
                           </div>
                         )}
 
@@ -637,16 +679,96 @@ export default function TripPlanner() {
                   </div>
                 </div>
 
+                {/* Created trips history list */}
+                {isAuthenticated && pastTrips.length > 0 && (
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-[2.5rem] p-6 shadow-sm space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-black uppercase tracking-wider text-slate-800 dark:text-white flex items-center gap-2">
+                        <Calendar className="w-4.5 h-4.5 text-orange-500" />
+                        Lịch sử tạo lịch trình của bạn
+                      </h3>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-orange-500 bg-orange-50 dark:bg-orange-950/20 px-2 py-0.5 rounded-md">
+                        {pastTrips.length} hành trình
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 max-h-[300px] overflow-y-auto pr-1">
+                      {pastTrips.map((trip: any) => {
+                        const stopCount = trip.tripLocations?.length || 0;
+                        return (
+                          <div 
+                            key={trip.tripId || trip.id}
+                            onClick={() => handleLoadPastTrip(trip)}
+                            className="p-4 bg-slate-50 dark:bg-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-800/80 rounded-2xl cursor-pointer transition flex items-center justify-between group"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <h4 className="text-xs font-black text-slate-800 dark:text-white truncate group-hover:text-orange-500 transition-colors">
+                                {trip.title || 'Hành trình không tên'}
+                              </h4>
+                              <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate mt-1">
+                                {trip.description || 'Không có mô tả cho hành trình này.'}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0 pl-4">
+                              <span className="text-[9px] font-black uppercase tracking-wider bg-orange-500/10 text-orange-600 px-2.5 py-1 rounded-full">
+                                {stopCount} điểm dừng
+                              </span>
+                              <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-orange-500 transition-colors" />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
               </div>
             )}
 
           </div>
 
           {/* RIGHT COLUMN: 5 Columns (Interactive GIS Leaflet Map & Total Cost Summary) */}
-          <div className="lg:col-span-5 lg:sticky lg:top-24 space-y-6">
+          <div className="lg:col-span-5 space-y-6">
             
+            {/* Total Budget Card for the entire trip */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-2xl p-6 shadow-sm relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-500" />
+              <div className="absolute -bottom-10 -left-10 w-24 h-24 bg-blue-500/5 rounded-full blur-xl" />
+              
+              <div className="space-y-4 relative z-10">
+                <span className="text-[9px] font-black uppercase tracking-widest bg-orange-500 text-white px-2.5 py-1 rounded-xl shadow-sm">
+                  Tổng kết chuyến đi
+                </span>
+                
+                <div className="space-y-1">
+                  <span className="text-xs font-bold text-slate-400 dark:text-slate-500 block uppercase tracking-wider">Tổng chi phí dự tính toàn chuyến:</span>
+                  <div className="text-2xl font-black text-orange-500 font-mono tracking-tight">
+                    {formatVND(entireTripCost)}
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-100 dark:border-slate-800/80 pt-4 space-y-2 text-xs">
+                  <div className="flex justify-between font-semibold">
+                    <span className="text-slate-500 dark:text-slate-400">Số lượng địa điểm đặt chặng:</span>
+                    <span className="text-slate-800 dark:text-slate-200 font-bold">{tripItems.length} chặng dừng</span>
+                  </div>
+                  <div className="flex justify-between font-semibold">
+                    <span className="text-slate-500 dark:text-slate-400">Số ngày tham quan:</span>
+                    <span className="text-slate-800 dark:text-slate-200 font-bold">{tripDaysCount} ngày</span>
+                  </div>
+                  <div className="flex justify-between font-semibold">
+                    <span className="text-slate-500 dark:text-slate-400">Khu vực địa lý:</span>
+                    <span className="text-slate-800 dark:text-slate-200 font-bold">Hồ Chí Minh, VN</span>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-slate-50 dark:bg-slate-950/50 rounded-xl text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed font-semibold border border-slate-100 dark:border-slate-800">
+                  ⚠️ Lưu ý: Ước tính tài chính trên dựa theo dữ liệu thực tế trung bình từ API của hệ thống. Phí Grab di chuyển thực tế có thể thay đổi tùy thuộc vào điều kiện thời tiết tại TP.HCM.
+                </div>
+              </div>
+            </div>
+
             {/* GIS Map container */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-[2.5rem] p-4 shadow-sm space-y-4">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-4 lg:sticky lg:top-24 z-10">
               <div className="flex items-center justify-between px-1">
                 <span className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-white">
                   Bản đồ hành trình {activeDay}
@@ -656,7 +778,7 @@ export default function TripPlanner() {
                 </span>
               </div>
               
-              <div className="h-[450px] w-full rounded-[2rem] overflow-hidden border border-slate-100 dark:border-slate-800/80 shadow-inner relative z-0">
+              <div className="h-[400px] w-full rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800/80 shadow-inner relative z-0">
                 <MapView 
                   locations={gpsCoords ? [
                     { 
@@ -675,59 +797,20 @@ export default function TripPlanner() {
               </div>
 
               {route ? (
-                <div className="p-3 bg-orange-50/50 dark:bg-orange-950/10 rounded-2xl flex items-center gap-2 border border-orange-100/50 dark:border-orange-950/20 text-[10px] text-orange-600 dark:text-orange-400 font-bold uppercase tracking-wider">
+                <div className="p-3 bg-orange-50/50 dark:bg-orange-950/10 rounded-xl flex items-center gap-2 border border-orange-100/50 dark:border-orange-950/20 text-[10px] text-orange-600 dark:text-orange-400 font-bold uppercase tracking-wider">
                   <Check className="w-3.5 h-3.5" /> Tuyến đường OSRM đã tự động tối ưu hóa chặng đi thành công!
                 </div>
               ) : (
-                <div className="p-3 bg-slate-50 dark:bg-slate-850 rounded-2xl flex items-center gap-2 text-[10px] text-slate-450 dark:text-slate-500 font-bold uppercase tracking-wider">
+                <div className="p-3 bg-slate-50 dark:bg-slate-850 rounded-xl flex items-center gap-2 text-[10px] text-slate-450 dark:text-slate-500 font-bold uppercase tracking-wider border border-transparent">
                   <AlertCircle className="w-3.5 h-3.5 text-slate-400" /> Thêm ít nhất 2 địa điểm để vẽ sơ đồ di chuyển GIS.
                 </div>
               )}
-            </div>
-
-            {/* Total Budget Card for the entire trip */}
-            <div className="bg-gradient-to-tr from-slate-900 to-indigo-950 text-white rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden group border border-white/5">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/15 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-500" />
-              <div className="absolute -bottom-10 -left-10 w-24 h-24 bg-blue-500/10 rounded-full blur-xl" />
-              
-              <div className="space-y-6 relative z-10">
-                <span className="text-[9px] font-black uppercase tracking-widest bg-orange-500 text-white px-3 py-1 rounded-full">
-                  Tổng kết chuyến đi
-                </span>
-                
-                <div className="space-y-1">
-                  <span className="text-xs font-semibold text-slate-300 block uppercase tracking-wider">Tổng chi phí dự tính toàn chuyến:</span>
-                  <div className="text-3xl font-black text-orange-500 font-mono tracking-tight">
-                    {formatVND(entireTripCost)}
-                  </div>
-                </div>
-
-                <div className="border-t border-white/10 pt-4 space-y-2 text-xs">
-                  <div className="flex justify-between font-semibold">
-                    <span className="text-slate-400">Số lượng địa điểm đặt chặng:</span>
-                    <span>{tripItems.length} chặng dừng</span>
-                  </div>
-                  <div className="flex justify-between font-semibold">
-                    <span className="text-slate-400">Số ngày tham quan:</span>
-                    <span>{tripDaysCount} ngày</span>
-                  </div>
-                  <div className="flex justify-between font-semibold">
-                    <span className="text-slate-400">Khu vực địa lý:</span>
-                    <span>Hồ Chí Minh, VN</span>
-                  </div>
-                </div>
-
-                <div className="p-4 bg-white/5 rounded-2xl text-[10px] text-slate-350 leading-relaxed font-semibold">
-                  ⚠️ Lưu ý: Ước tính tài chính trên dựa theo dữ liệu thực tế trung bình từ API của hệ thống. Phí Grab di chuyển thực tế có thể thay đổi tùy thuộc vào điều kiện thời tiết tại TP.HCM.
-                </div>
-              </div>
             </div>
 
           </div>
 
         </div>
 
-      </div>
     </div>
   );
 }

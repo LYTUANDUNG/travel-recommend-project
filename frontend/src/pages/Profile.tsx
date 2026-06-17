@@ -6,6 +6,7 @@ import { api } from '../api';
 import { Location, Favorite, VisitRequest } from '../types/schema';
 import RatingStars from '../components/RatingStars';
 import { useNavigate } from 'react-router-dom';
+import { encodeId } from '../utils/obfuscate';
 export default function Profile() {
     const { user, loginAsUser, logout } = useAuthStore();
     const navigate = useNavigate();
@@ -454,7 +455,7 @@ export default function Profile() {
                                                 return (
                                                     <div 
                                                         key={f.id} 
-                                                        onClick={() => navigate(`/location/${id}`)}
+                                                        onClick={() => navigate(`/location/${encodeId(id)}`)}
                                                         className="group bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700 overflow-hidden cursor-pointer hover:shadow-lg transition-all"
                                                     >
                                                         <div className="h-32 overflow-hidden">

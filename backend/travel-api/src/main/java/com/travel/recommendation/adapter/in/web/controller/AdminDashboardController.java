@@ -21,7 +21,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/admin/dashboard")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class AdminDashboardController {
 
     private final UserRepository userRepository;
@@ -64,31 +63,35 @@ public class AdminDashboardController {
             Double avgRating = reviewRepository.getAverageRating();
             stats.put("avg_rating", avgRating != null ? Math.round(avgRating * 10.0) / 10.0 : 0.0);
             
-            // Efficient charting (Show last 30 days)
+            // Thống kê hoạt động (Hiển thị 30 ngày qua)
             List<UserBehaviorLogRepository.BehaviorStats> behaviorStats = behaviorLogRepository.getActionStatsByDate(lastMonth);
             stats.put("activity_stats", behaviorStats);
             
-            // Add AI Metrics from Python Service evaluation results
+            // Lấy kết quả đánh giá thực nghiệm từ Python AI Service
             try {
-                // Use absolute path to ensure stability across different CWDs
-                String metricsPath = "d:/TLTN/FE/python_ai_service/evaluation_results/metrics.json";
-                java.io.File metricsFile = new java.io.File(metricsPath);
+                // Kiểm tra đường dẫn tương đối để tương thích mọi thư mục cài đặt
+                String relativePath = "python_ai_service/evaluation_results/metrics.json";
+                java.io.File metricsFile = new java.io.File(relativePath);
+                if (!metricsFile.exists()) {
+                    metricsFile = new java.io.File("../" + relativePath);
+                }
+                
                 if (metricsFile.exists()) {
                     com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
                     Map<String, Object> aiMetrics = mapper.readValue(metricsFile, Map.class);
                     stats.put("ai_metrics", aiMetrics);
                 } else {
-                    System.err.println("AI Metrics file not found at: " + metricsFile.getAbsolutePath());
+                    System.err.println("Không tìm thấy file kết quả đánh giá tại: " + metricsFile.getAbsolutePath());
                 }
             } catch (Exception e) {
-                System.err.println("Could not load AI metrics: " + e.getMessage());
+                System.err.println("Không thể tải kết quả đánh giá AI: " + e.getMessage());
             }
             
-            String metricsInfo = stats.containsKey("ai_metrics") ? " (with AI metrics)" : " (metrics not found)";
-            return ResponseEntity.ok(ApiResponse.success(stats, "Dashboard statistics fetched successfully" + metricsInfo));
+            String metricsInfo = stats.containsKey("ai_metrics") ? " (kèm kết quả đánh giá)" : " (không tìm thấy kết quả đánh giá)";
+            return ResponseEntity.ok(ApiResponse.success(stats, "Lấy số liệu thống kê thành công" + metricsInfo));
         } catch (Exception e) {
             e.printStackTrace();
-            return ResponseEntity.ok(ApiResponse.success(new HashMap<>(), "Warning: Stats failed: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.success(new HashMap<>(), "Cảnh báo: Thống kê thất bại: " + e.getMessage()));
         }
     }
 
@@ -96,7 +99,7 @@ public class AdminDashboardController {
         if (total == 0 || newCount == 0) return "+0.0%";
         if (total == newCount) return "+100.0%";
         double percentage = (double) newCount / (total - newCount) * 100;
-        if (percentage > 100) return "+100.0%"; // Cap for clean UI
+        if (percentage > 100) return "+100.0%"; // Giới hạn hiển thị trên giao diện
         return String.format("+%.1f%%", percentage);
     }
 }

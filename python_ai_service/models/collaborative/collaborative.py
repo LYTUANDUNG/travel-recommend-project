@@ -35,6 +35,9 @@ def precompute_collaborative(df_reviews: pd.DataFrame):
     
     # Popularity fallback dựa trên số lượt Like thực tế (rating >= 4)
     pop_fallback = df_binary[df_binary['binary_rating'] == 1.0].groupby('location_id').size().sort_values(ascending=False)
+    if pop_fallback.empty and not df_reviews.empty:
+        # Fallback sang độ nổi tiếng tổng quát dựa trên số lượng tương tác
+        pop_fallback = df_reviews.groupby('location_id').size().sort_values(ascending=False)
     
     return matrix, item_corr, pop_fallback
 
@@ -68,17 +71,9 @@ def recommend_collaborative(df_reviews: pd.DataFrame, user_item_matrix, item_cor
         else:
             return res[:top_n]
             
-    # Load df_locations và df_profiles động nếu chưa được truyền vào
+    # df_locations và df_profiles phải được truyền vào từ ứng dụng chính (main.py)
     if df_locations is None or df_profiles is None:
-        try:
-            from sqlalchemy import create_engine
-            engine = create_engine("mysql+mysqlconnector://root:root@localhost:3307/travel_recommendation")
-            if df_locations is None:
-                df_locations = pd.read_sql("SELECT location_id, category_id FROM locations", engine)
-            if df_profiles is None:
-                df_profiles = pd.read_sql("SELECT user_id, category_id, affinity_score FROM user_interest_profiles", engine)
-        except Exception as e:
-            print(f"[WARNING] Fallback DB loading in CF failed: {e}")
+        raise ValueError("Dữ liệu df_locations và df_profiles bắt buộc phải được cung cấp.")
             
     user_ratings = user_item_matrix.loc[user_id]
     scores = {}
@@ -142,15 +137,8 @@ def recommend_collaborative(df_reviews: pd.DataFrame, user_item_matrix, item_cor
             "score": round(score, 3)
         })
         
-    # Áp dụng bộ lọc ngưỡng với UX Fallback phòng trường hợp ngưỡng quá cao trả về rỗng
+    # Áp dụng bộ lọc ngưỡng nghiêm ngặt (Strict Threshold Filtering)
     if threshold is not None:
-        filtered_result = [r for r in result if r['score'] >= threshold]
-        if len(filtered_result) > 0:
-            # Trả về toàn bộ danh sách đạt ngưỡng (không bị giới hạn bởi top_n)
-            return filtered_result
-        else:
-            # Fallback về top_n tiêu chuẩn để tránh hiển thị rỗng ở giao diện người dùng
-            print(f"[INFO] Collaborative CF: Không có kết quả nào đạt ngưỡng {threshold}. Fallback về top_n={top_n}.")
-            return result[:top_n]
-    else:
-        return result[:top_n]
+        result = [r for r in result if r['score'] >= threshold]
+        
+    return result[:top_n]

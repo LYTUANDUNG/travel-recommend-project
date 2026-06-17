@@ -56,6 +56,10 @@ tasks.withType(JavaCompile) {
 		// Explicit modern ByteBuddy dependencies
 		implementation 'net.bytebuddy:byte-buddy:1.15.11'
 		implementation 'net.bytebuddy:byte-buddy-agent:1.15.11'
+
+		// JAXB API and Runtime for Java 17+ compatibility with Hibernate 6
+		implementation 'jakarta.xml.bind:jakarta.xml.bind-api'
+		implementation 'org.glassfish.jaxb:jaxb-runtime'
 	}
 
 	tasks.named('test') {

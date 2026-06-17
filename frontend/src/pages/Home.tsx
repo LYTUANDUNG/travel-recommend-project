@@ -62,7 +62,6 @@ export default function Home() {
   const [newestLocations, setNewestLocations] = useState<any[]>([]);
   const [blogs, setBlogs] = useState<any[]>([]);
   const [activeCategories, setActiveCategories] = useState<any[]>([]);
-  const [allLocationsForStats, setAllLocationsForStats] = useState<any[]>([]);
   const [totalLocations, setTotalLocations] = useState(0);
   const [selectedCategoryName, setSelectedCategoryName] = useState<string>('Tất cả');
 
@@ -85,58 +84,58 @@ export default function Home() {
   useEffect(() => {
     setLoading(true);
     
-    // Fetch Active Categories
-    api.category.getActive().then(res => {
-        if (res.success) {
-            setActiveCategories(res.data);
-        }
-    });
+    Promise.allSettled([
+      api.category.getActive(),
+      api.location.getPaginated({ page: 0, size: pageSize }),
+      api.location.getPaginated({ page: 0, size: 4, sort: 'locationId,desc' }),
+      api.blog.getAll(),
+      api.client.get('/banners/active')
+    ]).then(([activeCategoriesRes, paginatedLocationsRes, newestLocationsRes, blogsRes, bannersRes]) => {
+      // 1. Process Active Categories
+      if (activeCategoriesRes.status === 'fulfilled' && activeCategoriesRes.value.success) {
+        setActiveCategories(activeCategoriesRes.value.data);
+      }
 
-    // Initial paginated load
-    api.location.getPaginated({ page: 0, size: pageSize }).then(res => {
-        if (res.success && res.data) {
-            setLocations(res.data.content);
-            setTotalLocations(res.data.total_elements || res.data.totalElements || res.data.total || res.data.content.length);
-            setHasMore(res.data.content.length === pageSize);
-        }
-    }).finally(() => setLoading(false));
+      // 2. Process Paginated Locations (initial chunk)
+      if (paginatedLocationsRes.status === 'fulfilled' && paginatedLocationsRes.value.success && paginatedLocationsRes.value.data) {
+        const data = paginatedLocationsRes.value.data;
+        setLocations(data.content || []);
+        setTotalLocations(data.total_elements || data.totalElements || data.total || (data.content || []).length);
+        setHasMore((data.content || []).length === pageSize);
+      }
 
-    api.location.getAll().then(res => {
-        if (res.success && Array.isArray(res.data)) {
-            setAllLocationsForStats(res.data);
-            setTotalLocations(prev => prev || res.data.length);
-        }
-    });
+      // 3. Process Newest Locations
+      if (newestLocationsRes.status === 'fulfilled' && newestLocationsRes.value.success && newestLocationsRes.value.data) {
+        setNewestLocations(newestLocationsRes.value.data.content || []);
+      }
 
-    // Fetch Newest Locations
-    api.location.getPaginated({ page: 0, size: 4, sort: 'locationId,desc' }).then(res => {
-        if (res.success && res.data) {
-            setNewestLocations(res.data.content);
-        }
-    });
+      // 4. Process Blogs
+      if (blogsRes.status === 'fulfilled' && blogsRes.value.success && blogsRes.value.data) {
+        const rawData = blogsRes.value.data as any;
+        const blogData = Array.isArray(rawData) 
+          ? rawData 
+          : (rawData.content || []);
+        setBlogs(blogData.slice(0, 3));
+      }
 
-    // Fetch Blogs
-    api.blog.getAll().then(res => {
-        if (res.success && res.data) {
-            const blogData = Array.isArray(res.data) ? res.data : ((res.data as any).content || []);
-            setBlogs(blogData.slice(0, 3));
-        }
-    });
-    
-    // Fetch Active Banners
-    api.client.get('/banners/active').then(res => {
-        if (res.data?.success && res.data.data.length > 0) {
-            setBanners(res.data.data);
+      // 5. Process Banners
+      if (bannersRes.status === 'fulfilled') {
+        const resData = bannersRes.value.data;
+        if (resData?.success && resData.data && resData.data.length > 0) {
+          setBanners(resData.data);
         } else {
-            setBanners([
-                { id: 'dev1', title: 'Khám phá thế giới cùng VinaTravel', image_url: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=1200&q=80', link: '/explore' },
-                { id: 'dev2', title: 'Lập lịch trình đi chơi hoàn hảo với AI', image_url: 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1200&q=80', link: '/ai-recommend' }
-            ]);
+          setBanners([
+            { id: 'dev1', title: 'Khám phá thế giới cùng VinaTravel', image_url: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=1200&q=80', link: '/explore' },
+            { id: 'dev2', title: 'Lập lịch trình đi chơi hoàn hảo với AI', image_url: 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1200&q=80', link: '/ai-recommend' }
+          ]);
         }
-    }).catch(() => {
+      } else {
         setBanners([
-            { id: 'dev1', title: 'Khám phá thế giới cùng VinaTravel', image_url: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=1200&q=80', link: '/explore' }
+          { id: 'dev1', title: 'Khám phá thế giới cùng VinaTravel', image_url: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=1200&q=80', link: '/explore' }
         ]);
+      }
+    }).finally(() => {
+      setLoading(false);
     });
   }, []);
 
@@ -191,13 +190,24 @@ export default function Home() {
       if (user) localStorage.setItem(`onboarded_${user.user_id}`, 'true');
   };
 
-  // Dynamic count calculator
+  // Dynamic count calculator reading from pre-aggregated backend data
   const getLocCount = (catName: string) => {
-      const source = allLocationsForStats.length > 0 ? allLocationsForStats : locations;
-      return source.filter(loc => 
-          loc.category_name?.toLowerCase().includes(catName.toLowerCase()) ||
-          loc.category?.name?.toLowerCase().includes(catName.toLowerCase())
-      ).length;
+      const activeCat = activeCategories.find((c: any) => 
+          c.name?.toLowerCase().includes(catName.toLowerCase()) ||
+          catName.toLowerCase().includes(c.name?.toLowerCase())
+      );
+      if (activeCat) {
+          const count = activeCat.location_count !== undefined ? activeCat.location_count : activeCat.locationCount;
+          if (count !== undefined && count !== null) {
+              return count;
+          }
+      }
+      // Fallback count from templates
+      const template = categoryTemplates.find(t => 
+          t.name.toLowerCase().includes(catName.toLowerCase()) ||
+          catName.toLowerCase().includes(t.name.toLowerCase())
+      );
+      return template?.fallbackCount || 0;
   };
 
   const getCategoryTemplate = (catName: string) => {
@@ -251,7 +261,7 @@ export default function Home() {
                     }
                 }
             }}
-            className={`lg:col-span-8 relative h-[360px] lg:h-[420px] rounded-[2rem] overflow-hidden shadow-sm group border border-slate-200/70 dark:border-slate-800 ${banners[currentBanner]?.link?.trim() ? 'cursor-pointer hover:brightness-[0.98] transition-all duration-300' : ''}`}
+            className={`lg:col-span-8 relative h-[360px] lg:h-[420px] rounded-2xl overflow-hidden shadow-sm group border border-slate-200/70 dark:border-slate-800 ${banners[currentBanner]?.link?.trim() ? 'cursor-pointer hover:brightness-[0.98] transition-all duration-300' : ''}`}
           >
             {banners.map((b, idx) => (
                 <div 
@@ -314,7 +324,7 @@ export default function Home() {
             {/* Glassmorphic inline search on desktop */}
             <div 
                 onClick={(e) => e.stopPropagation()}
-                className="absolute top-6 left-6 right-6 z-30 bg-white/15 backdrop-blur-md border border-white/25 p-1.5 rounded-2xl flex items-center shadow-lg hidden md:flex"
+                className="absolute top-6 left-6 right-6 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/80 p-1.5 rounded-2xl flex items-center shadow-lg hidden md:flex"
             >
                 <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center text-white shrink-0 ml-1 shadow-md shadow-orange-500/10">
                     <Search className="w-4 h-4" />
@@ -325,11 +335,11 @@ export default function Home() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && navigate(`/explore?q=${searchQuery}`)}
-                    className="w-full bg-transparent border-none outline-none text-white placeholder:text-white/60 font-semibold px-4 text-xs"
+                    className="w-full bg-transparent border-none outline-none text-slate-800 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400 font-bold px-4 text-xs"
                 />
                 <button 
                     onClick={() => navigate(`/explore?q=${searchQuery}`)} 
-                    className="px-6 py-2.5 bg-white text-slate-900 rounded-xl font-bold text-xs hover:scale-105 active:scale-95 transition-all mr-1 shadow-sm"
+                    className="px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold text-xs hover:scale-105 active:scale-95 transition-all mr-1 shadow-md"
                 >
                     Đi thôi!
                 </button>
@@ -341,7 +351,7 @@ export default function Home() {
               {/* Dynamic Map GIS Card */}
               <div 
                 onClick={() => navigate('/map')}
-                className="flex-1 min-h-[220px] rounded-[2rem] bg-slate-900 p-6 text-white relative overflow-hidden shadow-sm flex flex-col justify-between group cursor-pointer hover:shadow-lg transition-all border border-slate-800"
+                className="flex-1 min-h-[220px] rounded-2xl bg-slate-900 p-6 text-white relative overflow-hidden shadow-sm flex flex-col justify-between group cursor-pointer hover:shadow-lg transition-all border border-slate-800"
               >
                   {/* Map Layer Background */}
                   <div className="absolute inset-0 z-0 opacity-40 group-hover:opacity-60 transition-opacity duration-700">
@@ -372,10 +382,10 @@ export default function Home() {
       {/* ==================================================== */}
       {/* SECTION 2: CATEGORY HORIZONTAL SLIDER (VinaTravel theme) */}
       {/* ==================================================== */}
-      <section className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-[0_4px_20px_rgba(0,0,0,0.01)] relative">
+      <section className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/50 dark:border-slate-850/50 shadow-[0_4px_20px_rgba(0,0,0,0.01)] relative">
           <div className="flex items-center justify-between mb-6">
               <div>
-                  <h2 className="text-lg font-black text-slate-800 dark:text-white leading-tight">
+                  <h2 className="font-serif text-2xl font-black text-slate-900 dark:text-white leading-tight">
                       Khám phá theo nhu cầu
                   </h2>
                   <p className="text-slate-400 dark:text-slate-500 font-bold text-xs mt-1">Lựa chọn của bạn là gì?</p>
@@ -456,7 +466,7 @@ export default function Home() {
           <section className="bg-gradient-to-tr from-blue-500/5 via-indigo-500/5 to-transparent p-6 rounded-3xl border border-blue-500/10 shadow-[0_4px_25px_rgba(37,99,235,0.02)]">
              <div className="mb-6 flex justify-between items-end">
                 <div>
-                    <h2 className="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
+                    <h2 className="font-serif text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
                        <TrendingUp className="w-5 h-5 text-blue-500 shrink-0 animate-bounce" /> Gợi ý dành riêng cho {user?.full_name?.split(' ').pop()}
                     </h2>
                     <p className="text-slate-400 dark:text-slate-500 font-bold text-xs mt-1">Gợi ý dựa trên sở thích, đánh giá và địa điểm bạn đã quan tâm.</p>
@@ -476,7 +486,7 @@ export default function Home() {
       <section>
           <div className="flex items-center justify-between mb-6">
               <div>
-                  <h2 className="text-lg font-black text-slate-800 dark:text-white leading-tight">
+                  <h2 className="font-serif text-2xl font-black text-slate-900 dark:text-white leading-tight">
                       Gợi ý Cà phê tại <span className="text-orange-500">Thành phố Hồ Chí Minh</span>
                   </h2>
                   <p className="text-slate-400 dark:text-slate-500 font-bold text-xs mt-1">Các quán cà phê được check-in nhiều nhất trên VinaTravel.</p>
@@ -510,9 +520,9 @@ export default function Home() {
       {/* SECTION 5: GEOGRAPHIC/GIS NEARBY RECOMMENDATIONS     */}
       {/* ==================================================== */}
       {coords && locations.length > 0 && (
-          <section className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-[0_4px_20px_rgba(0,0,0,0.01)]">
+          <section className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/50 dark:border-slate-850/50 shadow-[0_4px_20px_rgba(0,0,0,0.01)]">
              <div className="mb-6">
-                <h2 className="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
+                <h2 className="font-serif text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
                   <MapPin className="w-5 h-5 text-red-500 shrink-0" /> Quanh đây có gì vui?
                 </h2>
                 <p className="text-slate-400 dark:text-slate-500 font-bold text-xs mt-1">Đề xuất các địa điểm cách bạn chỉ vài trăm mét.</p>
@@ -536,10 +546,10 @@ export default function Home() {
       {/* ==================================================== */}
       {/* SECTION 6: KHO ĐỊA ĐIỂM TỔNG HỢP (PAGINATED CHUNKS) */}
       {/* ==================================================== */}
-      <section className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-[0_4px_20px_rgba(0,0,0,0.01)]">
+      <section className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/50 dark:border-slate-850/50 shadow-[0_4px_20px_rgba(0,0,0,0.01)]">
         <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100 dark:border-slate-800">
           <div>
-            <h2 className="text-lg font-black text-slate-800 dark:text-white leading-tight">
+            <h2 className="font-serif text-2xl font-black text-slate-900 dark:text-white leading-tight">
                Kho địa điểm ăn chơi tổng hợp
             </h2>
             <p className="text-slate-400 dark:text-slate-500 font-bold text-xs mt-1">
@@ -582,10 +592,10 @@ export default function Home() {
       {/* ==================================================== */}
       {/* SECTION 7: TRAVEL BLOGS & USER GUIDE (CẨM NANG)    */}
       {/* ==================================================== */}
-      <section className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 p-8 rounded-3xl shadow-[0_4px_25px_rgba(0,0,0,0.01)]">
+      <section className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/80 p-8 rounded-2xl shadow-[0_4px_25px_rgba(0,0,0,0.01)]">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h2 className="text-xl font-black text-slate-800 dark:text-white leading-tight">
+            <h2 className="font-serif text-2xl font-black text-slate-900 dark:text-white leading-tight">
                Cẩm nang Du lịch & Tin tức
             </h2>
             <p className="text-slate-400 dark:text-slate-500 font-bold text-xs mt-1">Cập nhật xu hướng du lịch khám phá hàng đầu.</p>

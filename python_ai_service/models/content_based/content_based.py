@@ -46,7 +46,7 @@ def recommend_content_based(df: pd.DataFrame, cosine_sim, location_id: int, top_
     2. Nếu có Profile người dùng, ưu tiên các điểm thuộc danh mục họ yêu thích.
     3. Áp dụng bộ lọc ngưỡng (threshold) để đảm bảo độ tương đồng tối thiểu.
     """
-    if location_id not in df['location_id'].values:
+    if cosine_sim is None or location_id not in df['location_id'].values:
         return []
 
     # Tìm index của địa điểm hiện tại
@@ -87,9 +87,6 @@ def recommend_content_based(df: pd.DataFrame, cosine_sim, location_id: int, top_
         # Ở đây dùng Affinity (thường từ 1.0 - 2.0 hoặc tùy hệ thống)
         final_score = min(1.0, raw_score * min(2.0, max(1.0, affinity)))
         
-        if user_id is not None:
-            print(f"DEBUG item={loc_row['location_id']}, cat={cat_id}, affinity={affinity}, raw={raw_score}, final={final_score}")
-        
         result.append({
             "placeId": int(loc_row['location_id']),
             "score": round(final_score, 3),
@@ -99,17 +96,8 @@ def recommend_content_based(df: pd.DataFrame, cosine_sim, location_id: int, top_
     # Sắp xếp kết quả sau khi boost
     result = sorted(result, key=lambda x: x['score'], reverse=True)
 
-    # Áp dụng bộ lọc ngưỡng với UX Fallback phòng trường hợp ngưỡng quá cao trả về rỗng
+    # Áp dụng bộ lọc ngưỡng nghiêm ngặt (Strict Threshold Filtering)
     if threshold is not None:
-        filtered_result = [r for r in result if r['score'] >= threshold]
-        if len(filtered_result) > 0:
-            # Trả về toàn bộ danh sách đạt ngưỡng (không bị giới hạn bởi top_n)
-            return filtered_result
-        else:
-            # Fallback về top_n tiêu chuẩn để tránh hiển thị rỗng ở giao diện người dùng
-            print(f"[INFO] Content-Based: Không có kết quả nào đạt ngưỡng {threshold}. Fallback về top_n={top_n}.")
-            return result[:top_n]
-    else:
-        return result[:top_n]
+        result = [r for r in result if r['score'] >= threshold]
 
-    return result
+    return result[:top_n]

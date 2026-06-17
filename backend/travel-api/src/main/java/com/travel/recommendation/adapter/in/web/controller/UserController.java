@@ -4,34 +4,37 @@ import com.travel.recommendation.domain.dto.ApiResponse;
 import com.travel.recommendation.domain.dto.UpdateCurrentUserRequest;
 import com.travel.recommendation.domain.dto.UserDto;
 import com.travel.recommendation.domain.entity.User;
+import com.travel.recommendation.domain.exception.BadRequestException;
+import com.travel.recommendation.domain.mapper.UserMapper;
+import com.travel.recommendation.security.SecurityUtils;
 import com.travel.recommendation.service.UserService;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
+@Slf4j
 public class UserController {
 
     private final UserService userService;
+    private final UserMapper userMapper;
  
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<List<UserDto>>> getAllUsers() {
-        return ResponseEntity.ok(ApiResponse.success(
-            userService.findAll().stream().map(this::mapToDto).collect(Collectors.toList()),
-            "Users fetched successfully"
-        ));
+        log.info("Lấy toàn bộ danh sách người dùng (Admin)");
+        List<UserDto> users = userService.findAll().stream()
+                .map(userMapper::toDto)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(ApiResponse.success(users, "Lấy danh sách người dùng thành công"));
     }
 
     @GetMapping("/paginated")
@@ -41,58 +44,56 @@ public class UserController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         
+        log.info("Lấy danh sách người dùng phân trang: page={}, size={}, query={}", page, size, query);
         org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
         return ResponseEntity.ok(ApiResponse.success(
-            userService.findPaginated(query, pageable).map(this::mapToDto),
-            "Users fetched successfully"
+            userService.findPaginated(query, pageable).map(userMapper::toDto),
+            "Lấy danh sách phân trang thành công"
         ));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<UserDto>> getUserProfile(@PathVariable Long id) {
-        return userService.findById(id)
-                .map(user -> ResponseEntity.ok(ApiResponse.success(mapToDto(user), "User fetched successfully")))
-                .orElse(ResponseEntity.ok(ApiResponse.<UserDto>error("User not found")));
+        User user = userService.getUserById(id);
+        return ResponseEntity.ok(ApiResponse.success(userMapper.toDto(user), "Lấy thông tin người dùng thành công"));
     }
 
     @GetMapping("/me")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<UserDto>> getCurrentUserProfile() {
-        Long userId = getCurrentUserId();
-
-        return userService.findById(userId)
-                .map(user -> ResponseEntity.ok(ApiResponse.success(mapToDto(user), "Current user fetched successfully")))
-                .orElse(ResponseEntity.ok(ApiResponse.<UserDto>error("User not found")));
+        Long userId = SecurityUtils.getCurrentUserId();
+        User user = userService.getUserById(userId);
+        return ResponseEntity.ok(ApiResponse.success(userMapper.toDto(user), "Lấy thông tin cá nhân thành công"));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<UserDto>> updateUserProfile(@PathVariable Long id, @RequestBody User request) {
-        return userService.findById(id)
-                .map(existingUser -> {
-                    User updatedUser = userService.updateSelfProfile(
-                            existingUser.getId(),
-                            request.getFullName(),
-                            request.getPhoneNumber(),
-                            request.getAvatarUrl(),
-                            request.getGender(),
-                            request.getBirthYear(),
-                            request.getNationality(),
-                            request.getInterests()
-                    );
-                    return ResponseEntity
-                            .ok(ApiResponse.success(mapToDto(updatedUser), "Profile updated successfully"));
-                })
-                .orElse(ResponseEntity.ok(ApiResponse.<UserDto>error("User not found")));
+        User existingUser = userService.getUserById(id);
+        User updatedUser = userService.updateSelfProfile(
+                existingUser.getId(),
+                request.getFullName(),
+                request.getPhoneNumber(),
+                request.getAvatarUrl(),
+                request.getGender(),
+                request.getBirthYear(),
+                request.getNationality(),
+                request.getInterests()
+        );
+        return ResponseEntity.ok(ApiResponse.success(userMapper.toDto(updatedUser), "Cập nhật thông tin thành công"));
     }
 
     @PutMapping("/me")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<UserDto>> updateCurrentUserProfile(@RequestBody UpdateCurrentUserRequest request) {
-        Long userId = getCurrentUserId();
+        Long userId = SecurityUtils.getCurrentUserId();
 
         User.Gender gender = null;
         if (request.getGender() != null && !request.getGender().isBlank()) {
-            gender = User.Gender.valueOf(request.getGender().toUpperCase());
+            try {
+                gender = User.Gender.valueOf(request.getGender().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new BadRequestException("Giới tính cung cấp không hợp lệ");
+            }
         }
 
         User updatedUser = userService.updateSelfProfile(
@@ -106,14 +107,15 @@ public class UserController {
                 request.getInterests()
         );
 
-        return ResponseEntity.ok(ApiResponse.success(mapToDto(updatedUser), "Profile updated successfully"));
+        return ResponseEntity.ok(ApiResponse.success(userMapper.toDto(updatedUser), "Cập nhật thông tin cá nhân thành công"));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable Long id) {
+        log.info("Xóa người dùng ID: {}", id);
         userService.deleteUser(id);
-        return ResponseEntity.ok(ApiResponse.success(null, "User deleted successfully"));
+        return ResponseEntity.ok(ApiResponse.success(null, "Xóa người dùng thành công"));
     }
 
     @PatchMapping("/{id}/active")
@@ -123,10 +125,10 @@ public class UserController {
             @RequestBody java.util.Map<String, Boolean> body) {
         Boolean isActive = body.get("is_active");
         if (isActive == null) {
-            return ResponseEntity.ok(ApiResponse.error("is_active is required"));
+            throw new BadRequestException("Trường is_active là bắt buộc");
         }
         User updatedUser = userService.setActiveStatus(id, isActive);
-        return ResponseEntity.ok(ApiResponse.success(mapToDto(updatedUser), "User status updated successfully"));
+        return ResponseEntity.ok(ApiResponse.success(userMapper.toDto(updatedUser), "Cập nhật trạng thái người dùng thành công"));
     }
 
     @PatchMapping("/{id}/role")
@@ -135,14 +137,14 @@ public class UserController {
             @PathVariable Long id,
             @RequestBody java.util.Map<String, String> body) {
         String roleStr = body.get("role");
-        if (roleStr == null) return ResponseEntity.ok(ApiResponse.error("Role is required"));
+        if (roleStr == null) throw new BadRequestException("Trường role là bắt buộc");
         
         try {
             User.Role role = User.Role.valueOf(roleStr.toUpperCase());
             User updatedUser = userService.updateRole(id, role);
-            return ResponseEntity.ok(ApiResponse.success(mapToDto(updatedUser), "Role updated successfully"));
+            return ResponseEntity.ok(ApiResponse.success(userMapper.toDto(updatedUser), "Cập nhật quyền người dùng thành công"));
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.ok(ApiResponse.error("Invalid role"));
+            throw new BadRequestException("Quyền (role) cung cấp không hợp lệ");
         }
     }
 
@@ -153,15 +155,11 @@ public class UserController {
         String newPassword = body.get("new_password");
         
         if (oldPassword == null || newPassword == null) {
-            return ResponseEntity.ok(ApiResponse.error("Old and new passwords are required"));
+            throw new BadRequestException("Mật khẩu cũ và mật khẩu mới là bắt buộc");
         }
         
-        try {
-            userService.changePassword(getCurrentUserId(), oldPassword, newPassword);
-            return ResponseEntity.ok(ApiResponse.success(null, "Đổi mật khẩu thành công"));
-        } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
-        }
+        userService.changePassword(SecurityUtils.getCurrentUserId(), oldPassword, newPassword);
+        return ResponseEntity.ok(ApiResponse.success(null, "Đổi mật khẩu thành công"));
     }
 
     @PostMapping("/{id}/avatar")
@@ -169,72 +167,34 @@ public class UserController {
             @PathVariable Long id,
             @RequestBody java.util.Map<String, @NotBlank String> body) {
         String avatarUrl = body.get("avatar_url");
-        if (avatarUrl == null) return ResponseEntity.ok(ApiResponse.error("Avatar URL is required"));
+        if (avatarUrl == null) throw new BadRequestException("Đường dẫn ảnh đại diện là bắt buộc");
         
-        try {
-            User updatedUser = userService.updateAvatar(id, avatarUrl);
-            return ResponseEntity.ok(ApiResponse.success(mapToDto(updatedUser), "Avatar updated successfully"));
-        } catch (RuntimeException e) {
-            return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
-        }
+        User updatedUser = userService.updateAvatar(id, avatarUrl);
+        return ResponseEntity.ok(ApiResponse.success(userMapper.toDto(updatedUser), "Cập nhật ảnh đại diện thành công"));
     }
 
     @GetMapping("/{id}/avatar")
     public ResponseEntity<?> getAvatar(@PathVariable Long id) {
-        return userService.findById(id)
-                .map(user -> {
-                    String avatarUrl = user.getAvatarUrl();
-                    if (avatarUrl == null || avatarUrl.isBlank()) {
-                        return ResponseEntity.notFound().build();
-                    }
-                    // Redirect to the actual image URL
-                    return ResponseEntity.status(302)
-                            .location(java.net.URI.create(avatarUrl))
-                            .build();
-                })
-                .orElse(ResponseEntity.notFound().build());
+        User user = userService.getUserById(id);
+        String avatarUrl = user.getAvatarUrl();
+        if (avatarUrl == null || avatarUrl.isBlank()) {
+            return ResponseEntity.notFound().build();
+        }
+        // Điều hướng đến đường dẫn ảnh thật
+        return ResponseEntity.status(302)
+                .location(java.net.URI.create(avatarUrl))
+                .build();
     }
 
     @PostMapping("/{id}/interests")
     public ResponseEntity<ApiResponse<Void>> saveUserInterests(@PathVariable Long id, @RequestBody List<Long> categoryIds) {
         userService.saveUserInterests(id, categoryIds);
-        return ResponseEntity.ok(ApiResponse.success(null, "Interests saved successfully"));
+        return ResponseEntity.ok(ApiResponse.success(null, "Lưu danh mục sở thích thành công"));
     }
 
     @GetMapping("/{id}/interests")
     public ResponseEntity<ApiResponse<List<Long>>> getUserInterests(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.success(userService.getUserInterestIds(id), "Fetched"));
-    }
-
-    private UserDto mapToDto(User user) {
-        return UserDto.builder()
-                .user_id(user.getId())
-                .email(user.getEmail())
-                .username(user.getUsername())
-                .full_name(user.getFullName())
-                .role(user.getRole() != null ? user.getRole().name() : "USER")
-                .created_at(user.getCreatedAt())
-                .avatar_url(user.getAvatarUrl())
-                // Basic demographics
-                .phone_number(user.getPhoneNumber())
-                .gender(user.getGender() != null ? user.getGender().name() : null)
-                .birth_year(user.getBirthYear())
-                .nationality(user.getNationality())
-                .is_active(user.getIsActive())
-                .interests(user.getInterests() != null ? java.util.Arrays.asList(user.getInterests().split(",")) : java.util.Collections.emptyList())
-                .build();
-    }
-
-    private Long getCurrentUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String name = authentication.getName();
-        try {
-            return Long.valueOf(name);
-        } catch (NumberFormatException e) {
-            // If name is not a number (e.g. username), find user by username or email
-            return userService.findByEmail(name)
-                    .map(User::getId)
-                    .orElseThrow(() -> new RuntimeException("User not found for: " + name));
-        }
+        return ResponseEntity.ok(ApiResponse.success(userService.getUserInterestIds(id), "Lấy danh sách sở thích thành công"));
     }
 }
+

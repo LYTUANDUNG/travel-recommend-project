@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Lock, ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react';
+import { Lock, ArrowLeft, Loader2, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import { api } from '../../api';
 
 export default function ResetPassword() {
@@ -12,6 +12,8 @@ export default function ResetPassword() {
         password: '',
         confirmPassword: ''
     });
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState('');
@@ -21,6 +23,11 @@ export default function ResetPassword() {
         
         if (!token) {
             setError('Mã khôi phục không hợp lệ hoặc đã hết hạn.');
+            return;
+        }
+
+        if (formData.password.length < 8) {
+            setError('Mật khẩu mới phải có tối thiểu 8 ký tự.');
             return;
         }
 
@@ -60,7 +67,13 @@ export default function ResetPassword() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 py-12 px-4 sm:px-6 lg:px-8 relative">
+            {/* Background Decoration */}
+            <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+                <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-primary-200/20 blur-3xl opacity-50" />
+                <div className="absolute top-[30%] -right-[10%] w-[40%] h-[40%] rounded-full bg-secondary-200/20 blur-3xl opacity-50" />
+            </div>
+
             <div className="max-w-md w-full space-y-8 bg-white dark:bg-slate-900 p-8 rounded-2xl shadow-xl relative z-10 border border-slate-100 dark:border-slate-800">
                 <div className="text-center">
                     <div className="w-16 h-16 bg-primary-50 dark:bg-primary-900/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
@@ -91,14 +104,21 @@ export default function ResetPassword() {
                                         <Lock className="h-5 w-5 text-slate-400" />
                                     </div>
                                     <input
-                                        type="password"
+                                        type={showPassword ? "text" : "password"}
                                         required
-                                        minLength={6}
-                                        className="block w-full pl-10 pr-3 py-3 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-colors bg-white dark:bg-slate-950 text-slate-900 dark:text-white"
-                                        placeholder="Tối thiểu 6 ký tự"
+                                        minLength={8}
+                                        className="block w-full pl-10 pr-10 py-3 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-colors bg-white dark:bg-slate-950 text-slate-900 dark:text-white"
+                                        placeholder="Tối thiểu 8 ký tự"
                                         value={formData.password}
                                         onChange={e => setFormData({ ...formData, password: e.target.value })}
                                     />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-650"
+                                    >
+                                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                    </button>
                                 </div>
                             </div>
 
@@ -109,13 +129,20 @@ export default function ResetPassword() {
                                         <CheckCircle2 className="h-5 w-5 text-slate-400" />
                                     </div>
                                     <input
-                                        type="password"
+                                        type={showConfirmPassword ? "text" : "password"}
                                         required
-                                        className="block w-full pl-10 pr-3 py-3 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-colors bg-white dark:bg-slate-950 text-slate-900 dark:text-white"
+                                        className="block w-full pl-10 pr-10 py-3 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-colors bg-white dark:bg-slate-950 text-slate-900 dark:text-white"
                                         placeholder="Nhập lại mật khẩu"
                                         value={formData.confirmPassword}
                                         onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })}
                                     />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-650"
+                                    >
+                                        {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                    </button>
                                 </div>
                             </div>
                         </div>

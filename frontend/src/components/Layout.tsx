@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useThemeStore } from '../store/useThemeStore';
-import JMeterVConsole from './JMeterVConsole';
+import { useFavoriteStore } from '../store/useFavoriteStore';
 
 export default function Layout() {
     const { isAuthenticated, user, logout } = useAuthStore();
@@ -40,7 +40,7 @@ export default function Layout() {
     const sidebarLinks = [
         { path: '/', name: 'Trang chủ', icon: Home },
         { path: '/explore', name: 'Khám phá', icon: Compass },
-        { path: '/ai-recommend', name: 'Gợi ý AI', icon: Sparkles },
+        { path: '/ai-recommend', name: 'Gợi ý cho bạn', icon: Sparkles },
         { path: '/planner', name: 'Tạo lịch trình', icon: Calendar },
         { path: '/map', name: 'Bản đồ', icon: Map },
         { path: '/blog', name: 'Blog du lịch', icon: BookOpen },
@@ -58,6 +58,16 @@ export default function Layout() {
         await logout();
         navigate('/');
     };
+
+    // Fetch user favorites once globally
+    useEffect(() => {
+        if (isAuthenticated && user) {
+            const uid = user.user_id;
+            if (uid) {
+                useFavoriteStore.getState().fetchFavorites(uid);
+            }
+        }
+    }, [isAuthenticated, user]);
 
     // Close dropdowns on route change
     useEffect(() => {
@@ -269,8 +279,6 @@ export default function Layout() {
                     </main>
                 </div>
             </div>
-            {/* Floating JMeter & AI Console plugin like vConsole */}
-            <JMeterVConsole />
         </div>
     );
 }

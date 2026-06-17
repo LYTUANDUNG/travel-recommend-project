@@ -63,7 +63,7 @@ export default function AdminLocationForm() {
                 setCategories(res.data);
                 // Only set default if creating new (no id) and no category_id set yet
                 if (res.data.length > 0 && !id && !formData.category_id) {
-                    setFormData(prev => ({ ...prev, category_id: res.data[0].category_id }));
+                    setFormData(prev => ({ ...prev, category_id: res.data[0].category_id || res.data[0].id }));
                 }
             }
         }).catch(() => {
@@ -273,7 +273,10 @@ export default function AdminLocationForm() {
                                     >
                                         <option value="" disabled>-- Chọn danh mục --</option>
                                         {categories.length === 0 && <option value="">Đang tải...</option>}
-                                        {categories.map(c => <option key={c.category_id} value={c.category_id}>{c.name}</option>)}
+                                        {categories.map(c => {
+                                            const catId = c.category_id || c.id;
+                                            return <option key={catId} value={catId}>{c.name}</option>;
+                                        })}
                                     </select>
                                 </div>
                                 <div>

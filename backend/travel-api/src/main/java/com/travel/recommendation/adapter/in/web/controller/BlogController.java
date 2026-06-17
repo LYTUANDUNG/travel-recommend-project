@@ -2,6 +2,7 @@ package com.travel.recommendation.adapter.in.web.controller;
 
 import com.travel.recommendation.domain.dto.ApiResponse;
 import com.travel.recommendation.domain.dto.BlogDto;
+import com.travel.recommendation.domain.dto.PageResponse;
 import com.travel.recommendation.service.BlogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -14,19 +15,18 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/blogs")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class BlogController {
 
     private final BlogService blogService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<BlogDto>>> getAllBlogs(
+    public ResponseEntity<ApiResponse<PageResponse<BlogDto>>> getAllBlogs(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String category) {
         
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<BlogDto> blogs;
+        PageResponse<BlogDto> blogs;
         
         if (category != null && !category.isEmpty()) {
             blogs = blogService.getBlogsByCategory(category, pageRequest);

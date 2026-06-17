@@ -1,5 +1,6 @@
 package com.travel.recommendation.adapter.out.persistence;
 
+import com.travel.recommendation.domain.dto.CategoryDto;
 import com.travel.recommendation.domain.entity.Location;
 import com.travel.recommendation.domain.entity.Category;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -39,6 +40,7 @@ public interface LocationRepository extends JpaRepository<Location, Long> {
     @Query(value = "SELECT * FROM locations WHERE coordinate IS NOT NULL AND ST_Distance_Sphere(coordinate, POINT(?2, ?1)) <= ?3", nativeQuery = true)
     List<Location> findLocationsWithinRadius(double lat, double lng, double radiusInMeters);
 
+    @EntityGraph(attributePaths = {"category", "locationTags", "locationTags.tag"})
     @Query("SELECT l FROM Location l LEFT JOIN l.category c WHERE " +
            "(?1 IS NULL OR ?1 = '' OR LOWER(l.name) LIKE LOWER(CONCAT('%', ?1, '%')) OR LOWER(l.address) LIKE LOWER(CONCAT('%', ?1, '%'))) AND " +
            "(?2 IS NULL OR ?2 = 'All' OR l.province = ?2) AND " +
@@ -59,6 +61,11 @@ public interface LocationRepository extends JpaRepository<Location, Long> {
 
     @Query("SELECT l.category FROM Location l WHERE l.category IS NOT NULL GROUP BY l.category")
     List<Category> findActiveCategories();
+
+    @Query("SELECT new com.travel.recommendation.domain.dto.CategoryDto(c.id, c.name, c.slug, c.description, COUNT(l)) " +
+           "FROM Location l JOIN l.category c " +
+           "GROUP BY c.id, c.name, c.slug, c.description")
+    List<CategoryDto> findActiveCategoriesWithCount();
 
     @Query("SELECT COUNT(l) FROM Location l WHERE l.createdAt > ?1")
     long countByCreatedAtAfter(LocalDateTime date);

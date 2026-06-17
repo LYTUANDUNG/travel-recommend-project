@@ -166,31 +166,14 @@ export default function AiRecommend() {
             <Sparkles className="w-3 h-3 text-orange-500 animate-pulse" /> Trợ lý thông minh
           </div>
           <h1 className="text-3xl md:text-5xl font-black text-white mb-3">
-            Khám phá với <span className="text-orange-500">Gợi ý AI.</span>
+            Khám phá với <span className="text-orange-500">Gợi ý cho bạn.</span>
           </h1>
           <p className="text-sm text-slate-350 font-semibold leading-relaxed max-w-xl">
-            Sử dụng mô hình máy học tiên tiến để phân tích thói quen du lịch và gợi ý những địa điểm phù hợp nhất với phong cách của bạn.
+            Phân tích thói quen du lịch của bạn và đề xuất những địa điểm thích hợp nhất.
           </p>
         </div>
       </div>
 
-      {/* Navigation tabs & Status info */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-4 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-orange-50 dark:bg-orange-950/20 flex items-center justify-center text-orange-500 shrink-0">
-            <Brain className="w-5 h-5" />
-          </div>
-          <div>
-            <h2 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">Gợi ý cá nhân hóa (Collaborative Filtering)</h2>
-            <p className="text-xs text-slate-400 font-semibold">AI phân tích thói quen và tương tác từ cộng đồng để tìm điểm đến phù hợp nhất với bạn.</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 text-xs font-bold text-slate-500 bg-slate-50 dark:bg-slate-800/55 px-4 py-2.5 rounded-2xl shrink-0">
-           <Sliders className="w-3.5 h-3.5 text-orange-500 animate-spin-slow" />
-           <span>Trợ lý AI: <span className="text-orange-500 font-black uppercase">Đang hoạt động</span></span>
-        </div>
-      </div>
 
       {/* Main Content Pane */}
       <div className="w-full">
@@ -200,7 +183,7 @@ export default function AiRecommend() {
               <div className="w-16 h-16 border-4 border-orange-100 dark:border-orange-950/20 rounded-full animate-ping" />
               <Loader2 className="absolute top-4 left-4 w-8 h-8 animate-spin text-orange-500" />
             </div>
-            <p className="mt-6 text-slate-500 dark:text-slate-400 font-bold text-sm">Hệ thống AI đang phân tích dữ liệu gợi ý...</p>
+            <p className="mt-6 text-slate-500 dark:text-slate-400 font-bold text-sm">Hệ thống đang chuẩn bị danh sách gợi ý...</p>
           </div>
         ) : activeResults.length > 0 ? (
           <div className="space-y-12">
@@ -272,9 +255,9 @@ export default function AiRecommend() {
             <div className="w-16 h-16 bg-amber-500/10 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4">
               <BadgeAlert className="w-6 h-6 text-amber-500" />
             </div>
-            <h3 className="text-lg font-black text-slate-800 dark:text-white">Chưa có gợi ý cá nhân hóa</h3>
+            <h3 className="text-lg font-black text-slate-800 dark:text-white">Chưa có gợi ý phù hợp</h3>
             <p className="text-xs text-slate-450 dark:text-slate-500 max-w-sm mx-auto mt-2 font-semibold leading-relaxed">
-              Bạn chưa có nhiều hoạt động tương tác (yêu thích, đánh giá). Hãy tiếp tục khám phá và đánh giá các địa điểm để AI hiểu rõ sở thích của bạn hơn!
+              Bạn chưa có nhiều hoạt động tương tác (yêu thích, đánh giá). Hãy tiếp tục khám phá và đánh giá các địa điểm để hệ thống hiểu rõ sở thích của bạn hơn!
             </p>
             <button
               onClick={() => navigate('/explore')}

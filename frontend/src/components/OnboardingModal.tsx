@@ -34,13 +34,14 @@ export default function OnboardingModal({ user, onClose }: { user: any, onClose:
                 
                 <div className="flex flex-wrap gap-3 justify-center mb-10 max-h-[40vh] overflow-y-auto p-2 border-t border-b border-slate-50 dark:border-slate-800/50 py-6">
                     {categories.map(c => {
-                        const isSelected = selectedIds.includes(c.id);
+                        const catId = c.category_id || c.id;
+                        const isSelected = selectedIds.includes(catId);
                         return (
                             <button
-                                key={c.id}
+                                key={catId}
                                 onClick={() => {
-                                    if (isSelected) setSelectedIds(selectedIds.filter(id => id !== c.id));
-                                    else setSelectedIds([...selectedIds, c.id]);
+                                    if (isSelected) setSelectedIds(selectedIds.filter(id => id !== catId));
+                                    else setSelectedIds([...selectedIds, catId]);
                                 }}
                                 className={`px-5 py-3 rounded-2xl flex items-center gap-2 font-bold transition-all border-2 
                                 ${isSelected ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/40 shadow-sm' : 'border-slate-100 dark:border-slate-800 hover:border-primary-300 text-slate-500 dark:text-slate-400'}`}

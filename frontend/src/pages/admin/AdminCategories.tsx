@@ -117,32 +117,35 @@ export default function AdminCategories() {
                                         <tr>
                                             <td colSpan={2} className="px-8 py-20 text-center text-slate-500 font-bold">Chưa có danh mục nào.</td>
                                         </tr>
-                                    ) : categories.map((c) => (
-                                        <tr key={c.category_id} className="group hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-all duration-300">
-                                            <td className="px-8 py-5">
-                                                <div className="flex items-start gap-4">
-                                                    <div className="p-3 bg-orange-50 dark:bg-orange-900/30 rounded-2xl text-orange-600 dark:text-orange-400 transition-transform">
-                                                        <LayoutGrid className="w-5 h-5" />
+                                    ) : categories.map((c) => {
+                                        const catId = c.category_id || c.id;
+                                        return (
+                                            <tr key={catId} className="group hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-all duration-300">
+                                                <td className="px-8 py-5">
+                                                    <div className="flex items-start gap-4">
+                                                        <div className="p-3 bg-orange-50 dark:bg-orange-950/30 rounded-2xl text-orange-600 dark:text-orange-400 transition-transform">
+                                                            <LayoutGrid className="w-5 h-5" />
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="font-bold text-slate-900 dark:text-white text-base tracking-tight leading-none group-hover:text-orange-600 transition-colors uppercase">{c.name}</h4>
+                                                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 line-clamp-2 max-w-sm italic">
+                                                                {c.description || 'Không có mô tả cho danh mục này.'}
+                                                            </p>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <h4 className="font-bold text-slate-900 dark:text-white text-base tracking-tight leading-none group-hover:text-orange-600 transition-colors uppercase">{c.name}</h4>
-                                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 line-clamp-2 max-w-sm italic">
-                                                            {c.description || 'Không có mô tả cho danh mục này.'}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-8 py-5 text-right">
-                                                <button 
-                                                    onClick={() => handleDelete(c.category_id)} 
-                                                    className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-xl transition-all"
-                                                    title="Xóa"
-                                                >
-                                                    <Trash2 className="w-5 h-5" />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                                </td>
+                                                <td className="px-8 py-5 text-right">
+                                                    <button 
+                                                        onClick={() => handleDelete(catId)} 
+                                                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-xl transition-all"
+                                                        title="Xóa"
+                                                    >
+                                                        <Trash2 className="w-5 h-5" />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>

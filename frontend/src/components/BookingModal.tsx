@@ -8,9 +8,10 @@ interface BookingModalProps {
     onClose: () => void;
     locationId: number;
     locationName: string;
+    onSuccess?: () => void;
 }
 
-export default function BookingModal({ isOpen, onClose, locationId, locationName }: BookingModalProps) {
+export default function BookingModal({ isOpen, onClose, locationId, locationName, onSuccess }: BookingModalProps) {
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [date, setDate] = useState('');
@@ -30,9 +31,10 @@ export default function BookingModal({ isOpen, onClose, locationId, locationName
 
         setLoading(true);
         try {
-            const res = await api.visit.requestVisit(user.user_id, locationId);
+            const res = await api.visit.requestVisit(user.user_id, locationId, date);
             if (res.success) {
                 setStep(2);
+                onSuccess?.();
                 api.behavior.logAction({
                     user_id: user.user_id,
                     location_id: locationId,

@@ -12,12 +12,17 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.travel.recommendation.domain.dto.RegisterRequest;
+import com.travel.recommendation.domain.exception.BadRequestException;
+import com.travel.recommendation.domain.exception.ResourceNotFoundException;
+import lombok.extern.slf4j.Slf4j;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserService {
 
     private final UserRepository userRepository;
@@ -32,8 +37,19 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
+    public Optional<User> findByUsername(String username) {
+        return userRepository.findByUsername(username);
+    }
+
+    @Transactional(readOnly = true)
     public Optional<User> findById(Long id) {
         return userRepository.findById(id);
+    }
+
+    @Transactional(readOnly = true)
+    public User getUserById(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng với ID: " + id));
     }
 
     @Transactional(readOnly = true)
@@ -44,6 +60,48 @@ public class UserService {
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<User> findPaginated(String query, org.springframework.data.domain.Pageable pageable) {
         return userRepository.searchPaginated(query, pageable);
+    }
+
+    @Transactional
+    public User registerNewUser(RegisterRequest request) {
+        log.info("Bắt đầu xử lý đăng ký tài khoản cho email: {}", request.getEmail());
+        
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new BadRequestException("Email này đã được sử dụng trên hệ thống");
+        }
+
+        // Tự sinh username duy nhất nếu người dùng để trống hoặc không hợp lệ
+        String requestedUsername = request.getUsername();
+        if (requestedUsername == null || requestedUsername.trim().isEmpty()) {
+            requestedUsername = request.getEmail().split("@")[0];
+        }
+        if (requestedUsername.length() < 3) {
+            requestedUsername = (requestedUsername + "123").substring(0, 3);
+        }
+
+        String uniqueUsername = requestedUsername;
+        int count = 1;
+        while (userRepository.findByUsername(uniqueUsername).isPresent() || uniqueUsername.length() < 3) {
+            uniqueUsername = requestedUsername + count++;
+            if (uniqueUsername.length() > 50) {
+                uniqueUsername = uniqueUsername.substring(0, 45) + count;
+            }
+        }
+
+        User user = User.builder()
+                .username(uniqueUsername)
+                .email(request.getEmail())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .fullName(request.getFull_name())
+                .birthYear(request.getBirth_year())
+                .city(request.getProvince())
+                .interests(request.getInterests() != null ? String.join(",", request.getInterests()) : null)
+                .role(User.Role.USER)
+                .build();
+
+        User savedUser = userRepository.save(user);
+        log.info("Đăng ký tài khoản thành công cho user: {}, ID: {}", savedUser.getUsername(), savedUser.getId());
+        return savedUser;
     }
 
     @Transactional
@@ -77,7 +135,7 @@ public class UserService {
         if (user.getLastAvatarUpdate() != null) {
             LocalDateTime nextAllowed = user.getLastAvatarUpdate().plusDays(30);
             if (LocalDateTime.now().isBefore(nextAllowed)) {
-                // User must wait 30 days
+                // Người dùng phải đợi đủ 30 ngày
                 long daysLeft = java.time.Duration.between(LocalDateTime.now(), nextAllowed).toDays();
                 throw new RuntimeException("Bạn chỉ có thể đổi ảnh đại diện sau 30 ngày. Còn " + daysLeft + " ngày nữa.");
             }
@@ -130,11 +188,11 @@ public class UserService {
     public void saveUserInterests(Long userId, List<Long> categoryIds) {
         User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
         
-        // Delete old
+        // Xóa dữ liệu sở thích cũ
         List<com.travel.recommendation.domain.entity.UserInterestProfile> oldProfiles = userInterestProfileRepository.findByUserId(userId);
         userInterestProfileRepository.deleteAll(oldProfiles);
         
-        // Setup new
+        // Thiết lập dữ liệu sở thích mới
         for (Long catId : categoryIds) {
             com.travel.recommendation.domain.entity.Category category = categoryRepository.findById(catId).orElse(null);
             if (category != null) {
@@ -143,7 +201,7 @@ public class UserService {
                         .id(id)
                         .user(user)
                         .category(category)
-                        .affinityScore(5.0) // Strong explicit baseline
+                        .affinityScore(5.0) // Mức độ ưu thích cơ sở rõ ràng
                         .build();
                 userInterestProfileRepository.save(profile);
             }
@@ -191,7 +249,7 @@ public class UserService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Email không tồn tại trong hệ thống"));
         
-        // Remove old token if any
+        // Xóa mã khôi phục cũ nếu có
         tokenRepository.deleteByUser(user);
         
         String token = java.util.UUID.randomUUID().toString();

@@ -1,7 +1,10 @@
 package com.travel.recommendation.adapter.in.web.controller;
 
 import com.travel.recommendation.domain.dto.ApiResponse;
+import com.travel.recommendation.domain.exception.BadRequestException;
+import com.travel.recommendation.domain.exception.ResourceNotFoundException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -13,6 +16,22 @@ import java.util.Map;
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ApiResponse<Object>> handleResourceNotFound(ResourceNotFoundException ex) {
+        log.warn("Không tìm thấy tài nguyên: {}", ex.getMessage());
+        ApiResponse<Object> body = ApiResponse.error(ex.getMessage());
+        body.setStatusCode(404);
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ApiResponse<Object>> handleBadRequest(BadRequestException ex) {
+        log.warn("Yêu cầu không hợp lệ (Bad Request): {}", ex.getMessage());
+        ApiResponse<Object> body = ApiResponse.error(ex.getMessage());
+        body.setStatusCode(400);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Object>> handleValidation(MethodArgumentNotValidException ex) {

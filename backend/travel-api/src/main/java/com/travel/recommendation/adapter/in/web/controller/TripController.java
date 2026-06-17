@@ -2,8 +2,10 @@ package com.travel.recommendation.adapter.in.web.controller;
 
 import com.travel.recommendation.domain.dto.ApiResponse;
 import com.travel.recommendation.domain.entity.Trip;
+import com.travel.recommendation.security.SecurityUtils;
 import com.travel.recommendation.service.TripService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -12,19 +14,24 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/trips")
 @RequiredArgsConstructor
+@Slf4j
 public class TripController {
 
     private final TripService tripService;
 
-    @GetMapping("/user/{userId}")
+    @GetMapping("/my")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<List<Trip>>> getByUser(@PathVariable Long userId) {
+    public ResponseEntity<ApiResponse<List<Trip>>> getByUser() {
+        Long userId = SecurityUtils.getCurrentUserId();
+        log.info("Lấy danh sách chuyến đi của người dùng ID: {}", userId);
         return ResponseEntity.ok(ApiResponse.success(tripService.getByUser(userId), "Lấy danh sách chuyến đi thành công"));
     }
 
     @PostMapping("/create")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<Trip>> createTrip(@RequestParam Long userId, @RequestParam String title) {
+    public ResponseEntity<ApiResponse<Trip>> createTrip(@RequestParam String title) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        log.info("Người dùng ID {} tạo chuyến đi mới với tiêu đề: {}", userId, title);
         return ResponseEntity.ok(ApiResponse.success(tripService.createTrip(userId, title), "Tạo chuyến đi thành công"));
     }
 
@@ -34,13 +41,16 @@ public class TripController {
                                                        @RequestParam Long locationId,
                                                        @RequestParam(required = false) Integer day,
                                                        @RequestParam(required = false) Integer order) {
+        log.info("Thêm địa điểm ID {} vào chuyến đi ID {}, ngày {}, thứ tự {}", locationId, tripId, day, order);
         tripService.addLocationToTrip(tripId, locationId, day, order);
         return ResponseEntity.ok(ApiResponse.success(null, "Thêm địa điểm thành công"));
     }
 
     @PostMapping("/sync")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<Void>> syncTrip(@RequestParam Long userId, @RequestBody com.fasterxml.jackson.databind.JsonNode payload) {
+    public ResponseEntity<ApiResponse<Void>> syncTrip(@RequestBody com.fasterxml.jackson.databind.JsonNode payload) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        log.info("Đồng bộ hành trình cho người dùng ID: {}", userId);
         List<com.travel.recommendation.service.TripService.TripLocationSyncItem> items = new java.util.ArrayList<>();
         if (payload != null && payload.isArray()) {
             int index = 0;

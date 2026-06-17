@@ -13,7 +13,6 @@ import {
     ArrowLeft
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
-import JMeterVConsole from './JMeterVConsole';
 
 export default function AdminLayout() {
     const { user, logout } = useAuthStore();
@@ -112,8 +111,6 @@ export default function AdminLayout() {
                     <Outlet />
                 </div>
             </main>
-            {/* Floating JMeter & AI Console plugin like vConsole */}
-            <JMeterVConsole />
         </div>
     );
 }

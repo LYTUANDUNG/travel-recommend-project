@@ -11,7 +11,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/newsletter")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class NewsletterController {
 
     private final NewsletterService newsletterService;

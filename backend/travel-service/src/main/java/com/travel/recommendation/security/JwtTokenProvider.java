@@ -26,10 +26,17 @@ public class JwtTokenProvider {
     @Value("${app.jwtExpirationInMs:86400000}")
     private int jwtExpirationInMs;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.core.env.Environment env;
+
     private Key key;
 
     @PostConstruct
     public void init() {
+        boolean isProd = java.util.Arrays.asList(env.getActiveProfiles()).contains("prod");
+        if (isProd && "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".equals(jwtSecret)) {
+            throw new IllegalStateException("JWT Secret đang sử dụng khóa dự phòng mặc định không an toàn ở môi trường PRODUCTION! Vui lòng cấu hình app.jwtSecret.");
+        }
         this.key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
     }
 

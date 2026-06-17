@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
     Mail, 
     Phone, 
@@ -10,6 +10,8 @@ import {
     Globe,
     MessageSquare
 } from 'lucide-react';
+import { useAuthStore } from '../store/useAuthStore';
+import { api } from '../api';
 
 interface TeamMember {
     name: string;
@@ -22,6 +24,7 @@ interface TeamMember {
 }
 
 export default function Contact() {
+    const { user, isAuthenticated } = useAuthStore();
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -32,34 +35,28 @@ export default function Contact() {
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [error, setError] = useState('');
 
+    useEffect(() => {
+        if (isAuthenticated && user) {
+            setFormData(prev => ({
+                ...prev,
+                name: user.full_name || '',
+                email: user.email || ''
+            }));
+        }
+    }, [isAuthenticated, user]);
+
     const teamMembers: TeamMember[] = [
         {
             name: "Lý Tuấn Dũng",
-            role: "Trưởng nhóm & Kỹ sư Thuật toán AI",
-            avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=3270&auto=format&fit=crop",
-            bio: "Chịu trách nhiệm thiết kế hệ thống gợi ý, tối ưu hóa thuật toán Content-Based và Collaborative Filtering trên Python FastAPI đạt độ chính xác >94%.",
-            github: "https://github.com",
-            linkedin: "https://linkedin.com"
-        },
-        {
-            name: "Trần Minh Hoàng",
-            role: "Nhà phát triển Backend & Cơ sở dữ liệu",
-            avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=3087&auto=format&fit=crop",
-            bio: "Xây dựng lõi API Spring Boot bảo mật cao, thiết kế cấu trúc database, tích hợp các bộ nhớ đệm Redis và các luồng nghiệp vụ cho hệ thống VinaTravel.",
-            github: "https://github.com",
-            linkedin: "https://linkedin.com"
-        },
-        {
-            name: "Lê Thị Thu Thủy",
-            role: "Kiến trúc sư Frontend & Bản đồ GIS",
-            avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=3087&auto=format&fit=crop",
-            bio: "Thiết kế giao diện người dùng tối giản, mượt mà với tông màu Orange-Amber chủ đạo và tích hợp bản đồ Leaflet hiển thị trực quan dữ liệu địa lý.",
+            role: "Sinh viên thực hiện",
+            avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=3270&auto=format&fit=crop",
+            bio: "Khoa Công nghệ thông tin, Đại học Nông Lâm TPHCM. Chịu trách nhiệm thiết kế hệ thống gợi ý, phát triển toàn diện ứng dụng và tích hợp giải pháp bản đồ GIS.",
             github: "https://github.com",
             linkedin: "https://linkedin.com"
         }
     ];
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!formData.name || !formData.email || !formData.message) {
             setError('Vui lòng điền đầy đủ các thông tin bắt buộc.');
@@ -68,12 +65,24 @@ export default function Contact() {
         setError('');
         setIsSubmitting(true);
         
-        // Simulate API call
-        setTimeout(() => {
+        try {
+            const res = await api.auth.contactEmail(
+                formData.name,
+                formData.email,
+                formData.subject,
+                formData.message
+            );
+            if (res.success) {
+                setIsSubmitted(true);
+                setFormData(prev => ({ ...prev, subject: '', message: '' }));
+            } else {
+                setError(res.message || 'Có lỗi xảy ra khi gửi tin nhắn.');
+            }
+        } catch (err: any) {
+            setError(err.response?.data?.message || 'Không thể kết nối đến máy chủ.');
+        } finally {
             setIsSubmitting(false);
-            setIsSubmitted(true);
-            setFormData({ name: '', email: '', subject: '', message: '' });
-        }, 1500);
+        }
     };
 
     return (
@@ -110,11 +119,11 @@ export default function Contact() {
                     </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="flex justify-center">
                     {teamMembers.map((member, idx) => (
                         <div 
                             key={idx} 
-                            className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-[2.5rem] p-6 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col items-center text-center relative overflow-hidden group"
+                            className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-[2.5rem] p-6 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col items-center text-center relative overflow-hidden group max-w-md w-full"
                         >
                             <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-orange-500 to-amber-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                             
@@ -165,9 +174,9 @@ export default function Contact() {
                                 </div>
                                 <div>
                                     <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Địa chỉ Email</span>
-                                    <a href="mailto:support@vinatravel.vn" className="text-xs font-bold text-slate-750 dark:text-slate-200 hover:text-orange-500 transition-colors">
-                                        support@vinatravel.vn
-                                    </a>
+                                     <a href="mailto:lydung853@gmail.com" className="text-xs font-bold text-slate-750 dark:text-slate-200 hover:text-orange-500 transition-colors">
+                                         lydung853@gmail.com
+                                     </a>
                                 </div>
                             </div>
 
@@ -189,9 +198,9 @@ export default function Contact() {
                                 </div>
                                 <div>
                                     <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Trụ sở nghiên cứu</span>
-                                    <span className="text-xs font-bold text-slate-750 dark:text-slate-200">
-                                        Khu Công Nghệ Cao, Quận 9, Tp. Hồ Chí Minh, Việt Nam
-                                    </span>
+                                     <span className="text-xs font-bold text-slate-750 dark:text-slate-200">
+                                         Khu phố 6, Linh Trung, Tp. Thủ Đức, Tp. Hồ Chí Minh, Việt Nam
+                                     </span>
                                 </div>
                             </div>
                         </div>

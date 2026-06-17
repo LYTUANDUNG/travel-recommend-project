@@ -3,6 +3,7 @@ package com.travel.recommendation.adapter.in.web.controller;
 import com.travel.recommendation.domain.dto.ApiResponse;
 import com.travel.recommendation.domain.dto.VisitRequestDto;
 import com.travel.recommendation.domain.entity.VisitRequest;
+import com.travel.recommendation.security.SecurityUtils;
 import com.travel.recommendation.service.VisitRequestService;
 import com.travel.recommendation.security.JwtTokenProvider;
 import io.jsonwebtoken.Claims;
@@ -18,7 +19,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/visits")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 @Slf4j
 public class VisitRequestController {
 
@@ -31,9 +31,10 @@ public class VisitRequestController {
             @RequestParam Long locationId,
             @RequestParam(required = false) String visitDateStr) {
 
-        Long userId = Long.valueOf(org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName());
+        Long userId = SecurityUtils.getCurrentUserId();
+        log.info("Người dùng ID {} yêu cầu viếng thăm địa điểm ID {}", userId, locationId);
         LocalDateTime visitDate = visitDateStr != null ? LocalDateTime.parse(visitDateStr) : LocalDateTime.now();
-        return ResponseEntity.ok(ApiResponse.success(visitRequestService.requestVisit(userId, locationId, visitDate)));
+        return ResponseEntity.ok(ApiResponse.success(visitRequestService.requestVisit(userId, locationId, visitDate), "Gửi yêu cầu viếng thăm thành công"));
     }
 
     @PutMapping("/{requestId}/status")
@@ -42,32 +43,40 @@ public class VisitRequestController {
             @PathVariable Long requestId,
             @RequestBody java.util.Map<String, String> body) {
         VisitRequest.VisitStatus status = VisitRequest.VisitStatus.valueOf(body.get("status"));
-        return ResponseEntity.ok(ApiResponse.success(visitRequestService.updateStatus(requestId, status)));
+        log.info("Cập nhật trạng thái yêu cầu viếng thăm ID {} thành {}", requestId, status);
+        return ResponseEntity.ok(ApiResponse.success(visitRequestService.updateStatus(requestId, status), "Cập nhật trạng thái thành công"));
     }
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<VisitRequestDto>>> getAllRequests() {
-        return ResponseEntity.ok(ApiResponse.success(visitRequestService.getAllRequests()));
+        log.info("Lấy danh sách toàn bộ yêu cầu viếng thăm");
+        return ResponseEntity.ok(ApiResponse.success(visitRequestService.getAllRequests(), "Lấy danh sách yêu cầu viếng thăm thành công"));
     }
 
     @GetMapping("/paginated")
     public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<VisitRequestDto>>> getPaginatedRequests(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(ApiResponse.success(visitRequestService.getPaginatedRequests(page, size)));
+        log.info("Lấy danh sách yêu cầu viếng thăm phân trang: page={}, size={}", page, size);
+        return ResponseEntity.ok(ApiResponse.success(visitRequestService.getPaginatedRequests(page, size), "Lấy danh sách phân trang thành công"));
     }
 
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<ApiResponse<List<VisitRequestDto>>> getUserRequests(@PathVariable Long userId) {
-        return ResponseEntity.ok(ApiResponse.success(visitRequestService.getUserRequests(userId)));
+    @GetMapping("/my")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    public ResponseEntity<ApiResponse<List<VisitRequestDto>>> getUserRequests() {
+        Long userId = SecurityUtils.getCurrentUserId();
+        log.info("Lấy lịch sử viếng thăm của người dùng ID {}", userId);
+        return ResponseEntity.ok(ApiResponse.success(visitRequestService.getUserRequests(userId), "Lấy lịch sử viếng thăm thành công"));
     }
 
     @GetMapping("/can-review")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<ApiResponse<Boolean>> canUserReview(
-            @RequestParam Long userId,
             @RequestParam Long locationId) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        log.info("Kiểm tra quyền đánh giá của người dùng ID {} đối với địa điểm ID {}", userId, locationId);
         boolean canReview = visitRequestService.canUserReview(userId, locationId);
-        return ResponseEntity.ok(ApiResponse.success(canReview));
+        return ResponseEntity.ok(ApiResponse.success(canReview, "Kiểm tra quyền đánh giá thành công"));
     }
 
     @PostMapping("/verify-qr")
@@ -75,14 +84,14 @@ public class VisitRequestController {
     public ResponseEntity<ApiResponse<String>> verifyQr(@RequestBody java.util.Map<String, String> body) {
         String token = body.get("token");
         if (token == null || !tokenProvider.validateToken(token)) {
-            return ResponseEntity.ok(ApiResponse.error("Invalid or expired QR token"));
+            return ResponseEntity.ok(ApiResponse.error("Mã QR không hợp lệ hoặc đã hết hạn"));
         }
 
         Claims claims = tokenProvider.getClaimsFromToken(token);
         String visitIdStr = claims.get("visitId", String.class);
 
         if (visitIdStr == null) {
-            return ResponseEntity.ok(ApiResponse.error("Token does not contain visit information"));
+            return ResponseEntity.ok(ApiResponse.error("Mã QR thiếu thông tin chuyến đi"));
         }
 
         Long visitId = Long.parseLong(visitIdStr);
@@ -90,12 +99,13 @@ public class VisitRequestController {
 
         if (success) {
             log.info("EVENT=QR_VERIFY status=SUCCESS adminId={} visitId={}", 
-                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName(),
+                SecurityUtils.getCurrentUserId(),
                 visitId);
-            return ResponseEntity.ok(ApiResponse.success("Visit verified successfully", "Visit marked as completed"));
+            return ResponseEntity.ok(ApiResponse.success("Xác thực viếng thăm thành công", "Xác thực viếng thăm thành công"));
         } else {
             log.warn("EVENT=QR_VERIFY status=REUSE_ATTEMPT visitId={}", visitId);
-            return ResponseEntity.ok(ApiResponse.error("Token exhausted or already verified"));
+            return ResponseEntity.ok(ApiResponse.error("Mã QR đã được sử dụng hoặc xác thực trước đó"));
         }
     }
 }
+

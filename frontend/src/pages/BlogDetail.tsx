@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Calendar, Clock, Loader2, Share2 } from 'lucide-react';
 import { PageContainer, PageHeader, PageShell, Surface, secondaryButtonClassName } from '../components/ui/AppPage';
 import { api } from '../api';
+import { translateBlogCategory } from './Blog';
 
 export default function BlogDetail() {
     const { id } = useParams<{ id: string }>();
@@ -51,7 +52,7 @@ export default function BlogDetail() {
             <PageContainer className="pt-8 space-y-8">
                 <PageHeader
                     media={cover}
-                    eyebrow={blog.category || blog.category_name || 'Du lịch'}
+                    eyebrow={translateBlogCategory(blog.category || blog.category_name)}
                     title={blog.title}
                     description={blog.excerpt}
                     className="min-h-[360px] flex items-end"

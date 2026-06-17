@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../api';
 import { useNavigate } from 'react-router-dom';
+import { encodeId } from '../../utils/obfuscate';
 import { Location } from '../../types/schema';
 import { Trash2, Edit, MapPin, Loader2, Image as ImageIcon, Search, Plus, Filter, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 
@@ -155,7 +156,7 @@ export default function AdminLocations() {
                                     <td className="px-8 py-5 text-right">
                                         <div className="flex justify-end items-center gap-1">
                                             <button 
-                                                onClick={() => navigate(`/location/${loc.location_id}`)}
+                                                onClick={() => navigate(`/location/${encodeId(loc.location_id)}`)}
                                                 className="p-2 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 rounded-xl transition-all"
                                             >
                                                 <ExternalLink className="w-5 h-5" />

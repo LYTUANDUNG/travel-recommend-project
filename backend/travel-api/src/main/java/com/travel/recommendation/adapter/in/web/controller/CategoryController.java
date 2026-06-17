@@ -1,8 +1,9 @@
 package com.travel.recommendation.adapter.in.web.controller;
 
 import com.travel.recommendation.domain.dto.ApiResponse;
+import com.travel.recommendation.domain.dto.CategoryDto;
 import com.travel.recommendation.domain.entity.Category;
-import com.travel.recommendation.adapter.out.persistence.CategoryRepository;
+import com.travel.recommendation.service.CategoryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -14,25 +15,23 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/categories")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class CategoryController {
 
-    private final CategoryRepository categoryRepository;
-    private final com.travel.recommendation.adapter.out.persistence.LocationRepository locationRepository;
+    private final CategoryService categoryService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<Category>>> getAll() {
-        return ResponseEntity.ok(ApiResponse.success(categoryRepository.findAll()));
+        return ResponseEntity.ok(ApiResponse.success(categoryService.getAllCategories()));
     }
 
     @GetMapping("/active")
-    public ResponseEntity<ApiResponse<List<Category>>> getActive() {
-        return ResponseEntity.ok(ApiResponse.success(locationRepository.findActiveCategories()));
+    public ResponseEntity<ApiResponse<List<CategoryDto>>> getActive() {
+        return ResponseEntity.ok(ApiResponse.success(categoryService.getActiveCategoriesWithCount()));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Category>> getById(@PathVariable("id") Long id) {
-        return categoryRepository.findById(id)
+        return categoryService.getCategoryById(id)
                 .map(category -> ResponseEntity.ok(ApiResponse.success(category)))
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -40,18 +39,17 @@ public class CategoryController {
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Category>> create(@Valid @RequestBody Category category) {
-        return ResponseEntity.ok(ApiResponse.success(categoryRepository.save(category)));
+        return ResponseEntity.ok(ApiResponse.success(categoryService.saveCategory(category)));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Category>> update(@PathVariable("id") Long id, @Valid @RequestBody Category categoryDetails) {
-        return categoryRepository.findById(id)
+        return categoryService.getCategoryById(id)
                 .map(category -> {
                     category.setName(categoryDetails.getName());
                     category.setDescription(categoryDetails.getDescription());
-
-                    return ResponseEntity.ok(ApiResponse.success(categoryRepository.save(category)));
+                    return ResponseEntity.ok(ApiResponse.success(categoryService.saveCategory(category)));
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -59,7 +57,7 @@ public class CategoryController {
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") Long id) {
-        categoryRepository.deleteById(id);
+        categoryService.deleteCategory(id);
         return ResponseEntity.ok(ApiResponse.<Void>success(null));
     }
 }

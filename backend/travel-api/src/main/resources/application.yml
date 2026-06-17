@@ -56,3 +56,22 @@ logging:
 ai:
   service:
     base-url: ${AI_SERVICE_BASE_URL:http://localhost:8000}
+
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000,https://your-domain.vercel.app}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      aiService:
+        slidingWindowSize: 10
+        permittedNumberOfCallsInHalfOpenState: 3
+        slidingWindowType: COUNT_BASED
+        minimumNumberOfCalls: 5
+        waitDurationInOpenState: 5s
+        failureRateThreshold: 50
+        slowCallRateThreshold: 75
+        slowCallDurationThreshold: 2000ms
+
+

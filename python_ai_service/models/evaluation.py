@@ -6,8 +6,12 @@ import os
 import matplotlib.pyplot as plt
 import seaborn as sns
 import json
+from dotenv import load_dotenv
 
-# Fix for Windows font issue in Matplotlib
+# Tải cấu hình từ file .env
+load_dotenv()
+
+# Fix font cho biểu đồ trên Windows
 plt.rcParams['font.family'] = 'sans-serif'
 plt.rcParams['axes.unicode_minus'] = False
 
@@ -16,7 +20,13 @@ from utils.nlp_utils import NumpyTfidf, cosine_similarity_numpy
 from models.collaborative.collaborative import precompute_collaborative, recommend_collaborative
 from models.content_based.content_based import recommend_content_based, precompute_content_based
 
-DB_URL = "mysql+mysqlconnector://root:root@localhost:3307/travel_recommendation"
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_PORT = os.getenv("DB_PORT", "3307")
+DB_USER = os.getenv("DB_USER", "root")
+DB_PASS = os.getenv("DB_PASS", "root")
+DB_NAME = os.getenv("DB_NAME", "travel_recommendation")
+
+DB_URL = f"mysql+mysqlconnector://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 def calculate_precision_recall_f1(recommended, ground_truth):
     if not ground_truth:

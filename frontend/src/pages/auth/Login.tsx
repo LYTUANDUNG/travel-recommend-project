@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, Loader2, Facebook } from 'lucide-react';
+import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { api } from '../../api';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -8,6 +8,8 @@ import { useAuthStore } from '../../store/useAuthStore';
 export default function Login() {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [error, setError] = useState('');
     const [formData, setFormData] = useState({
         email: '',
         password: ''
@@ -16,6 +18,7 @@ export default function Login() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
+        setError('');
         try {
             const res = await api.auth.login(formData.email, formData.password);
             if (res.success && res.data) {
@@ -33,11 +36,11 @@ export default function Login() {
                     navigate('/');
                 }
             } else {
-                alert(res.message || 'Login failed');
+                setError(res.message || 'Tài khoản hoặc mật khẩu không chính xác');
             }
         } catch (error) {
             console.error('Login error', error);
-            alert('Lỗi kết nối tới máy chủ');
+            setError('Lỗi kết nối tới máy chủ');
         } finally {
             setLoading(false);
         }
@@ -59,7 +62,13 @@ export default function Login() {
                     </p>
                 </div>
 
-                <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+                {error && (
+                    <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm font-semibold">
+                        ⚠️ {error}
+                    </div>
+                )}
+
+                <form className="mt-6 space-y-6" onSubmit={handleSubmit}>
                     <div className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email</label>
@@ -85,13 +94,20 @@ export default function Login() {
                                     <Lock className="h-5 w-5 text-slate-400" />
                                 </div>
                                 <input
-                                    type="password"
+                                    type={showPassword ? "text" : "password"}
                                     required
-                                    className="block w-full pl-10 pr-3 py-3 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-colors bg-white dark:bg-slate-950 text-slate-900 dark:text-white"
+                                    className="block w-full pl-10 pr-10 py-3 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-colors bg-white dark:bg-slate-950 text-slate-900 dark:text-white"
                                     placeholder="••••••••"
                                     value={formData.password}
                                     onChange={e => setFormData({ ...formData, password: e.target.value })}
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-650"
+                                >
+                                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                </button>
                             </div>
                         </div>
                     </div>

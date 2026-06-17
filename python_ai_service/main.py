@@ -6,6 +6,8 @@ platform.machine = lambda: 'AMD64'
 from sqlalchemy import create_engine
 import os
 import json
+import time
+import numpy as np
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -45,18 +47,105 @@ engine = create_engine(DB_URL)
 df_locations = None
 cosine_sim = None
 df_reviews = None
+user_item_matrix = None
 item_corr = None
 pop_fallback = None
 df_profiles = None
+last_loaded_time = 0.0
+
+SHARED_STORAGE_DIR = os.getenv("SHARED_STORAGE_DIR", os.path.join(os.path.dirname(__file__), "shared_storage"))
+os.makedirs(SHARED_STORAGE_DIR, exist_ok=True)
+
+def save_to_shared_storage():
+    global df_locations, cosine_sim, df_reviews, user_item_matrix, item_corr, pop_fallback, df_profiles
+    print("[INFO] Saving computed models to shared storage...")
+    try:
+        df_locations_path = os.path.join(SHARED_STORAGE_DIR, "df_locations.pkl")
+        cosine_sim_path = os.path.join(SHARED_STORAGE_DIR, "cosine_sim.npy")
+        df_reviews_path = os.path.join(SHARED_STORAGE_DIR, "df_reviews.pkl")
+        user_item_matrix_path = os.path.join(SHARED_STORAGE_DIR, "user_item_matrix.pkl")
+        item_corr_path = os.path.join(SHARED_STORAGE_DIR, "item_corr.pkl")
+        pop_fallback_path = os.path.join(SHARED_STORAGE_DIR, "pop_fallback.pkl")
+        df_profiles_path = os.path.join(SHARED_STORAGE_DIR, "df_profiles.pkl")
+        marker_path = os.path.join(SHARED_STORAGE_DIR, "reload_marker.txt")
+        
+        if df_locations is not None:
+            df_locations.to_pickle(df_locations_path)
+        if cosine_sim is not None:
+            np.save(cosine_sim_path, cosine_sim)
+        if df_reviews is not None:
+            df_reviews.to_pickle(df_reviews_path)
+        if user_item_matrix is not None:
+            user_item_matrix.to_pickle(user_item_matrix_path)
+        if item_corr is not None:
+            item_corr.to_pickle(item_corr_path)
+        if pop_fallback is not None:
+            pd.to_pickle(pop_fallback, pop_fallback_path)
+        if df_profiles is not None:
+            df_profiles.to_pickle(df_profiles_path)
+            
+        with open(marker_path, "w", encoding="utf-8") as f:
+            f.write(str(time.time()))
+            
+        print("[SUCCESS] Saved models to shared storage and updated reload marker.")
+    except Exception as e:
+        print(f"[ERROR] Failed to save models to shared storage: {e}")
+
+def load_from_shared_storage_if_needed():
+    global df_locations, cosine_sim, df_reviews, user_item_matrix, item_corr, pop_fallback, df_profiles, last_loaded_time
+    marker_path = os.path.join(SHARED_STORAGE_DIR, "reload_marker.txt")
+    if not os.path.exists(marker_path):
+        if df_locations is None:
+            reload_models()
+        return
+        
+    mtime = os.path.getmtime(marker_path)
+    if mtime > last_loaded_time:
+        print(f"[INFO] Shared storage change detected (mtime={mtime} > last_loaded={last_loaded_time}). Loading models...")
+        try:
+            df_locations_path = os.path.join(SHARED_STORAGE_DIR, "df_locations.pkl")
+            cosine_sim_path = os.path.join(SHARED_STORAGE_DIR, "cosine_sim.npy")
+            df_reviews_path = os.path.join(SHARED_STORAGE_DIR, "df_reviews.pkl")
+            user_item_matrix_path = os.path.join(SHARED_STORAGE_DIR, "user_item_matrix.pkl")
+            item_corr_path = os.path.join(SHARED_STORAGE_DIR, "item_corr.pkl")
+            pop_fallback_path = os.path.join(SHARED_STORAGE_DIR, "pop_fallback.pkl")
+            df_profiles_path = os.path.join(SHARED_STORAGE_DIR, "df_profiles.pkl")
+            
+            if os.path.exists(df_locations_path):
+                df_locations = pd.read_pickle(df_locations_path)
+            if os.path.exists(cosine_sim_path):
+                cosine_sim = np.load(cosine_sim_path)
+            if os.path.exists(df_reviews_path):
+                df_reviews = pd.read_pickle(df_reviews_path)
+            if os.path.exists(user_item_matrix_path):
+                user_item_matrix = pd.read_pickle(user_item_matrix_path)
+            if os.path.exists(item_corr_path):
+                item_corr = pd.read_pickle(item_corr_path)
+            if os.path.exists(pop_fallback_path):
+                pop_fallback = pd.read_pickle(pop_fallback_path)
+            if os.path.exists(df_profiles_path):
+                df_profiles = pd.read_pickle(df_profiles_path)
+                app.state.df_profiles = df_profiles
+                
+            last_loaded_time = mtime
+            print("[SUCCESS] Loaded models successfully from shared storage!")
+        except Exception as e:
+            print(f"[ERROR] Failed to load models from shared storage: {e}")
 
 @app.on_event("startup")
 def load_model_once():
-    reload_models()
+    marker_path = os.path.join(SHARED_STORAGE_DIR, "reload_marker.txt")
+    if os.path.exists(marker_path):
+        print("[INFO] Startup: Found existing models in shared storage. Loading them...")
+        load_from_shared_storage_if_needed()
+    else:
+        print("[INFO] Startup: No models found in shared storage. Reloading from database...")
+        reload_models()
 
 @app.get("/recommend/reload")
 def reload_models():
     global df_locations, cosine_sim
-    global df_reviews, user_item_matrix, item_corr, pop_fallback, df_profiles
+    global df_reviews, user_item_matrix, item_corr, pop_fallback, df_profiles, last_loaded_time
     print("[INFO] Refreshing AI Models...")
     
     try:
@@ -104,6 +193,9 @@ def reload_models():
         # Store profiles in global for use in recommendations
         app.state.df_profiles = df_profiles
         
+        save_to_shared_storage()
+        last_loaded_time = time.time()
+        
         print("[SUCCESS] Models reloaded successfully with Implicit Feedback & Profiles!")
         return {"success": True, "message": "Models reloaded with enhanced data"}
     except Exception as e:
@@ -135,6 +227,7 @@ def background_enrich():
 @app.get("/recommend/collaborative")
 def get_collaborative_recommendation(user_id: int = None, top_n: int = 10, threshold: float = None):
     try:
+        load_from_shared_storage_if_needed()
         if user_id is None:
             return {"success": True, "data": [], "message": "Fallback"}
 
@@ -162,6 +255,7 @@ def get_collaborative_recommendation(user_id: int = None, top_n: int = 10, thres
 @app.get("/recommend/content")
 def get_content_based_recommendation(location_id: int = None, user_id: int = None, top_n: int = 5, threshold: float = None):
     try:
+        load_from_shared_storage_if_needed()
         if location_id is None:
             return {"success": True, "data": [], "message": "Fallback"}
 

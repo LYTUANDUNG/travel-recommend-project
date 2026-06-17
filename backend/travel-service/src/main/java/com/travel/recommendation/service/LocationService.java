@@ -1,76 +1,86 @@
 package com.travel.recommendation.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.travel.recommendation.domain.dto.LocationRequest;
 import com.travel.recommendation.domain.dto.LocationResponse;
 import com.travel.recommendation.domain.entity.Category;
 import com.travel.recommendation.domain.entity.Location;
 import com.travel.recommendation.domain.entity.Tag;
+import com.travel.recommendation.domain.exception.ResourceNotFoundException;
+import com.travel.recommendation.domain.mapper.LocationMapper;
 import com.travel.recommendation.adapter.out.persistence.CategoryRepository;
 import com.travel.recommendation.adapter.out.persistence.LocationRepository;
 import com.travel.recommendation.adapter.out.persistence.LocationTagRepository;
 import com.travel.recommendation.adapter.out.persistence.TagRepository;
+import com.travel.recommendation.adapter.out.persistence.ReviewRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.context.annotation.Lazy;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class LocationService {
 
     private final LocationRepository locationRepository;
     private final TagRepository tagRepository;
     private final LocationTagRepository locationTagRepository;
     private final CategoryRepository categoryRepository;
-    private final @Lazy com.travel.recommendation.adapter.out.persistence.ReviewRepository reviewRepository;
-    private final @Lazy com.travel.recommendation.adapter.out.persistence.UserInterestProfileRepository profileRepository;
-    private final @Lazy com.travel.recommendation.adapter.out.persistence.UserRepository userRepository;
-    private final VisitTimeInsightService visitTimeInsightService;
-    private final ObjectMapper objectMapper;
+    private final ReviewRepository reviewRepository;
+    private final LocationMapper locationMapper;
 
     @Transactional
-    @CacheEvict(value = {"userRecommendations", "guestRecommendations"}, allEntries = true)
+    @Caching(evict = {
+        @CacheEvict(value = {"userRecommendations", "guestRecommendations"}, allEntries = true),
+        @CacheEvict(value = "locations", key = "#p0")
+    })
     public void syncStats(Long locationId) {
+        log.info("Đồng bộ số liệu đánh giá cho địa điểm ID: {}", locationId);
         Location location = locationRepository.findById(locationId)
-                .orElseThrow(() -> new RuntimeException("Location not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy địa điểm với ID: " + locationId));
 
-        java.util.List<Object[]> statsList = reviewRepository.getReviewStats(locationId);
+        List<Object[]> statsList = reviewRepository.getReviewStats(locationId);
         if (statsList != null && !statsList.isEmpty() && statsList.get(0) != null) {
             Object[] stats = statsList.get(0);
             Long count = (Long) stats[0];
             Double avg = (Double) stats[1];
             location.setTotalReviews(count.intValue());
             location.setAverageRating(avg != null ? avg : 0.0);
-            locationRepository.save(location);
         } else {
             location.setTotalReviews(0);
             location.setAverageRating(0.0);
-            locationRepository.save(location);
         }
+        locationRepository.save(location);
     }
 
+    @Cacheable(value = "locations", key = "'all'", sync = true)
     @Transactional(readOnly = true)
     public List<LocationResponse> getAllLocations() {
+        log.info("Lấy danh sách tất cả các địa điểm");
         return locationRepository.findAll().stream()
-                .map(this::mapToResponse)
+                .map(locationMapper::toResponse)
                 .collect(Collectors.toList());
     }
 
+    @Cacheable(value = "locations", key = "#p0", sync = true)
     @Transactional(readOnly = true)
-    public java.util.Optional<LocationResponse> getLocationById(Long id) {
-        return locationRepository.findById(id).map(this::mapToResponse);
+    public Optional<LocationResponse> getLocationById(Long id) {
+        log.info("Lấy thông tin địa điểm theo ID: {}", id);
+        return locationRepository.findById(id).map(locationMapper::toResponse);
     }
 
     @Transactional(readOnly = true)
     public List<LocationResponse> getLocationsByIds(List<Long> ids) {
         if (ids == null || ids.isEmpty()) return List.of();
+        log.info("Lấy danh sách địa điểm theo loạt ID: {}", ids);
 
         java.util.Map<Long, Integer> requestedOrder = new java.util.HashMap<>();
         for (int i = 0; i < ids.size(); i++) {
@@ -79,24 +89,24 @@ public class LocationService {
 
         return locationRepository.findAllById(ids).stream()
                 .sorted(java.util.Comparator.comparingInt(loc -> requestedOrder.getOrDefault(loc.getId(), Integer.MAX_VALUE)))
-                .map(this::mapToResponse)
+                .map(locationMapper::toResponse)
                 .collect(Collectors.toList());
     }
 
     @Transactional
-    @CacheEvict(value = {"userRecommendations", "guestRecommendations"}, allEntries = true)
+    @CacheEvict(value = {"userRecommendations", "guestRecommendations", "locations", "categories"}, allEntries = true)
     public LocationResponse saveLocation(LocationRequest request) {
+        log.info("Tạo địa điểm mới: {}", request.getName());
         Category category = null;
         if (request.getCategoryId() != null) {
             category = categoryRepository.findById(request.getCategoryId())
-                    .orElseThrow(() -> new RuntimeException("Category not found with id: " + request.getCategoryId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy danh mục với ID: " + request.getCategoryId()));
         }
 
         Location location = Location.builder()
                 .name(request.getName())
                 .description(request.getDescription())
                 .address(request.getAddress())
-
                 .district(request.getDistrict())
                 .province(request.getProvince())
                 .latitude(request.getLatitude())
@@ -107,7 +117,7 @@ public class LocationService {
                 .openingHour(request.getOpeningHour() != null ? LocalTime.parse(request.getOpeningHour()) : null)
                 .closingHour(request.getClosingHour() != null ? LocalTime.parse(request.getClosingHour()) : null)
                 .thumbnailUrl(request.getThumbnailUrl())
-                .imagesJson(serializeImages(request.getImages()))
+                .imagesJson(locationMapper.serializeImages(request.getImages()))
                 .build();
 
         Location savedLocation = locationRepository.save(location);
@@ -129,25 +139,25 @@ public class LocationService {
             }
         }
 
-        return mapToResponse(savedLocation);
+        return locationMapper.toResponse(savedLocation);
     }
 
     @Transactional
-    @CacheEvict(value = {"userRecommendations", "guestRecommendations"}, allEntries = true)
+    @CacheEvict(value = {"userRecommendations", "guestRecommendations", "locations", "categories"}, allEntries = true)
     public LocationResponse updateLocation(Long id, LocationRequest request) {
+        log.info("Cập nhật thông tin địa điểm ID: {}", id);
         Location location = locationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Location not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy địa điểm với ID: " + id));
 
         Category category = null;
         if (request.getCategoryId() != null) {
             category = categoryRepository.findById(request.getCategoryId())
-                    .orElseThrow(() -> new RuntimeException("Category not found with id: " + request.getCategoryId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy danh mục với ID: " + request.getCategoryId()));
         }
 
         location.setName(request.getName());
         location.setDescription(request.getDescription());
         location.setAddress(request.getAddress());
-
         location.setDistrict(request.getDistrict());
         location.setProvince(request.getProvince());
         location.setLatitude(request.getLatitude());
@@ -158,32 +168,38 @@ public class LocationService {
         location.setOpeningHour(request.getOpeningHour() != null ? LocalTime.parse(request.getOpeningHour()) : null);
         location.setClosingHour(request.getClosingHour() != null ? LocalTime.parse(request.getClosingHour()) : null);
         location.setThumbnailUrl(request.getThumbnailUrl());
-        location.setImagesJson(serializeImages(request.getImages()));
+        location.setImagesJson(locationMapper.serializeImages(request.getImages()));
 
         Location updatedLocation = locationRepository.save(location);
-        return mapToResponse(updatedLocation);
+        return locationMapper.toResponse(updatedLocation);
     }
 
     @Transactional
-    @CacheEvict(value = {"userRecommendations", "guestRecommendations"}, allEntries = true)
+    @CacheEvict(value = {"userRecommendations", "guestRecommendations", "locations", "categories"}, allEntries = true)
     public void deleteLocation(Long id) {
+        log.info("Xóa địa điểm ID: {}", id);
+        if (!locationRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Không tìm thấy địa điểm với ID: " + id);
+        }
         locationRepository.deleteById(id);
     }
 
     @Transactional(readOnly = true)
     public List<LocationResponse> searchLocations(String query) {
+        log.info("Tìm kiếm địa điểm: {}", query);
         return locationRepository.searchLocationsNative(query)
                 .stream()
-                .map(this::mapToResponse)
+                .map(locationMapper::toResponse)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<LocationResponse> getLocationsPaginated(
             String query, String province, String category, Double rating, String price, int page, int size) {
+        log.info("Lấy danh sách địa điểm phân trang: page={}, size={}, query={}", page, size, query);
         org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
         return locationRepository.findLocationsPaginated(query, province, category, rating, price, pageable)
-                .map(this::mapToResponse);
+                .map(locationMapper::toResponse);
     }
 
     @Transactional(readOnly = true)
@@ -191,112 +207,7 @@ public class LocationService {
         return locationRepository.findDistinctProvinces();
     }
 
-    @Transactional(readOnly = true)
-    public List<LocationResponse> getRecommendations(Long userId, Double lat, Double lng) {
-        List<Location> allLocations = (lat != null && lng != null) 
-                ? locationRepository.findLocationsWithinRadius(lat, lng, 50000.0) 
-                : locationRepository.findAll();
-
-        if (allLocations.isEmpty()) return List.of();
-
-        // 1. Fetch User Data
-        final List<com.travel.recommendation.domain.entity.UserInterestProfile> profiles = 
-                userId != null ? profileRepository.findByUserId(userId) : java.util.Collections.emptyList();
-        
-        final String userInterests = userId != null 
-                ? userRepository.findById(userId).map(com.travel.recommendation.domain.entity.User::getInterests).orElse(null) 
-                : null;
-
-        // 2. Score and Sort
-        return allLocations.stream()
-                .map(loc -> {
-                    LocationResponse res = mapToResponse(loc);
-                    double score = calculateMatchScore(loc, profiles, userInterests);
-                    res.setMatchScore(score);
-                    return res;
-                })
-                .sorted(java.util.Comparator.comparingDouble(LocationResponse::getMatchScore).reversed())
-                .limit(20)
-                .collect(Collectors.toList());
-    }
-
-    private double calculateMatchScore(Location loc, List<com.travel.recommendation.domain.entity.UserInterestProfile> profiles, String userInterests) {
-        double score = 0.0;
-        
-        // A. Behavior Score (Weight 0.7)
-        if (loc.getCategory() != null) {
-            double behaviorScore = profiles.stream()
-                    .filter(p -> p.getCategory().getId().equals(loc.getCategory().getId()))
-                    .mapToDouble(com.travel.recommendation.domain.entity.UserInterestProfile::getAffinityScore)
-                    .findFirst()
-                    .orElse(0.0);
-            score += behaviorScore * 0.7;
-        }
-
-        // B. Declared Interest Score (Weight 0.3)
-        if (userInterests != null && loc.getCategory() != null) {
-            if (userInterests.toLowerCase().contains(loc.getCategory().getName().toLowerCase())) {
-                score += 5.0 * 0.3; // Boost if category matches declared interests
-            }
-        }
-
-        // C. Rating Bonus (Small boost)
-        score += (loc.getAverageRating() / 5.0) * 0.5;
-
-        return score;
-    }
-
     public LocationResponse mapToResponse(Location loc) {
-        VisitTimeInsightService.VisitTimeInsight insight = visitTimeInsightService.computeBestTime(loc);
-        return LocationResponse.builder()
-                .locationId(loc.getId())
-                .name(loc.getName())
-                .description(loc.getDescription())
-                .address(loc.getAddress())
-
-                .district(loc.getDistrict())
-                .province(loc.getProvince())
-                .latitude(loc.getLatitude())
-                .longitude(loc.getLongitude())
-                .categoryId(loc.getCategory() != null ? loc.getCategory().getId() : null)
-                .categoryName(loc.getCategory() != null ? loc.getCategory().getName() : null)
-                .priceLevel(loc.getPriceLevel())
-                .priceRangeStr(loc.getPriceRangeStr())
-                .openingHour(loc.getOpeningHour())
-                .closingHour(loc.getClosingHour())
-                .thumbnailUrl(loc.getThumbnailUrl())
-                .averageRating(loc.getAverageRating())
-                .totalReviews(loc.getTotalReviews())
-                .viewCount(loc.getViewCount())
-                .images(deserializeImages(loc.getImagesJson()))
-                .tags(loc.getLocationTags() != null ? loc.getLocationTags().stream()
-                        .map(lt -> LocationResponse.TagResponse.builder()
-                                .tagId(lt.getTag().getId())
-                                .name(lt.getTag().getName())
-                                .weight(lt.getTag().getWeight())
-                                .build())
-                        .collect(Collectors.toList()) : List.of())
-                .bestTimeToVisit(insight.bestTimeToVisit())
-                .bestTimeReason(insight.bestTimeReason())
-                .build();
-    }
-
-    private String serializeImages(List<String> images) {
-        if (images == null) return null;
-        try {
-            return objectMapper.writeValueAsString(images);
-        } catch (JsonProcessingException e) {
-            return "[]";
-        }
-    }
-
-    private List<String> deserializeImages(String imagesJson) {
-        if (imagesJson == null || imagesJson.isEmpty()) return List.of();
-        try {
-            String[] images = objectMapper.readValue(imagesJson, String[].class);
-            return List.of(images);
-        } catch (JsonProcessingException e) {
-            return List.of();
-        }
+        return locationMapper.toResponse(loc);
     }
 }

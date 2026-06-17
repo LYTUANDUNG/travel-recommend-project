@@ -1,5 +1,6 @@
 package com.travel.recommendation.service;
 
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,17 +24,29 @@ public class AiRecommendationClient {
     @Value("${AI_SERVICE_BASE_URL:http://localhost:8000}")
     private String aiServiceBaseUrl;
 
+    @CircuitBreaker(name = "aiService", fallbackMethod = "collaborativeFallback")
     public List<AiRankedItem> collaborative(Long userId, int topN) {
         String url = String.format("%s/recommend/collaborative?user_id=%d&top_n=%d", aiServiceBaseUrl, userId, topN);
         return fetchRankedItems(url);
     }
 
+    public List<AiRankedItem> collaborativeFallback(Long userId, int topN, Throwable throwable) {
+        log.warn("Circuit Breaker kích hoạt Fallback cho gợi ý lọc cộng tác (userId: {}), Nguyên nhân: {}", userId, throwable.getMessage());
+        return List.of();
+    }
+
+    @CircuitBreaker(name = "aiService", fallbackMethod = "contentFallback")
     public List<AiRankedItem> content(Long locationId, int topN, Long userId) {
         String url = String.format("%s/recommend/content?location_id=%d&top_n=%d", aiServiceBaseUrl, locationId, topN);
         if (userId != null) {
             url += "&user_id=" + userId;
         }
         return fetchRankedItems(url);
+    }
+
+    public List<AiRankedItem> contentFallback(Long locationId, int topN, Long userId, Throwable throwable) {
+        log.warn("Circuit Breaker kích hoạt Fallback cho gợi ý theo nội dung (locationId: {}, userId: {}), Nguyên nhân: {}", locationId, userId, throwable.getMessage());
+        return List.of();
     }
 
     private List<AiRankedItem> fetchRankedItems(String url) {
@@ -62,7 +75,7 @@ public class AiRecommendationClient {
             }
             return ranked;
         } catch (Exception ex) {
-            log.warn("AI recommendation call failed: {}", ex.getMessage());
+            log.warn("Lỗi gọi dịch vụ AI gợi ý (URL: {}): {}", url, ex.getMessage(), ex);
             return List.of();
         }
     }

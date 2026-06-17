@@ -15,9 +15,44 @@ import { useLocationStore } from '../store/useLocationStore';
 import { useTripStore } from '../store/useTripStore';
 import { cn } from '../utils/cn';
 import { formatOneDecimalFloor, humanizeDistance } from '../utils/humanize';
+import { decodeId } from '../utils/obfuscate';
+
+function getOpeningStatus(openingHour?: string, closingHour?: string): { status: string; isOpen: boolean } {
+  if (!openingHour || !closingHour) {
+    return { status: 'Chưa cập nhật', isOpen: false };
+  }
+
+  const parseTime = (timeStr: string) => {
+    const parts = timeStr.split(':');
+    const hours = parseInt(parts[0], 10) || 0;
+    const minutes = parseInt(parts[1], 10) || 0;
+    return hours * 60 + minutes;
+  };
+
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  const openMinutes = parseTime(openingHour);
+  const closeMinutes = parseTime(closingHour);
+
+  if (closeMinutes > openMinutes) {
+    const isOpen = currentMinutes >= openMinutes && currentMinutes <= closeMinutes;
+    return {
+      status: isOpen ? 'Đang mở cửa' : 'Đóng cửa',
+      isOpen
+    };
+  } else {
+    const isOpen = currentMinutes >= openMinutes || currentMinutes <= closeMinutes;
+    return {
+      status: isOpen ? 'Đang mở cửa' : 'Đóng cửa',
+      isOpen
+    };
+  }
+}
 
 export default function LocationDetail() {
-  const { id } = useParams();
+  const { id: rawId } = useParams();
+  const id = useMemo(() => decodeId(rawId), [rawId]);
   const navigate = useNavigate();
   const routerLocation = useLocation();
   const { coords } = useGeoLocation();
@@ -37,7 +72,7 @@ export default function LocationDetail() {
   const [routeError, setRouteError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!id || Number.isNaN(Number(id))) {
+    if (!id) {
       setLocation(null);
       setLoading(false);
       return;
@@ -46,7 +81,7 @@ export default function LocationDetail() {
     setLoading(true);
     setRoute(null);
     setRouteError(null);
-    api.location.getById(Number(id))
+    api.location.getById(id)
       .then(res => {
         if (res.success && res.data) {
           setLocation(res.data);
@@ -60,7 +95,7 @@ export default function LocationDetail() {
 
   useEffect(() => {
     if (!id) return;
-    api.location.getSimilar(Number(id), 4).then(res => {
+    api.location.getSimilar(id, 4).then(res => {
       if (res.success && Array.isArray(res.data)) setSimilarPlaces(res.data);
     });
   }, [id]);
@@ -74,13 +109,13 @@ export default function LocationDetail() {
 
     api.favorite.getByUser(user.user_id).then(res => {
       if (res.success && Array.isArray(res.data)) {
-        setIsFavorited(res.data.some((fav: any) => fav.location?.location_id === Number(id) || fav.location?.locationId === Number(id)));
+        setIsFavorited(res.data.some((fav: any) => fav.location?.location_id === id || fav.location?.locationId === id));
       }
     });
 
     api.visit.getUserRequests(user.user_id).then(res => {
       if (res.success && Array.isArray(res.data)) {
-        const current = res.data.find((visit: any) => visit.location?.location_id === Number(id) || visit.location_id === Number(id));
+        const current = res.data.find((visit: any) => visit.location?.location_id === id || visit.location_id === id);
         setVisitStatus(current?.status || null);
       }
     });
@@ -90,7 +125,7 @@ export default function LocationDetail() {
     if (isAuthenticated && user && id) {
       api.behavior.logAction({
         user_id: user.user_id,
-        location_id: Number(id),
+        location_id: id,
         action: 'VIEW_DETAILS'
       }).catch(() => {});
     }
@@ -103,6 +138,11 @@ export default function LocationDetail() {
       .filter(item => item.location_id !== location.location_id && item.category_id === location.category_id)
       .slice(0, 4);
   }, [location, locations, similarPlaces]);
+
+  const openingStatus = useMemo(() => {
+    if (!location) return { status: 'Chưa cập nhật', isOpen: false };
+    return getOpeningStatus(location.opening_hour, location.closing_hour);
+  }, [location]);
 
   if (loading) return <PageLoader label="Đang tải địa điểm..." />;
 
@@ -218,8 +258,24 @@ export default function LocationDetail() {
             <Surface className="p-6 md:p-8">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <InfoTile icon={<Star className="w-5 h-5 fill-amber-400 text-amber-400" />} label="Đánh giá" value={formatOneDecimalFloor(location.average_rating)} />
-                <InfoTile icon={<Sparkles className="w-5 h-5 text-orange-500" />} label="Phù hợp" value={normalizedScore != null && normalizedScore >= 0.5 ? `${Math.round(normalizedScore * 100)}%` : 'Đang học'} />
-                <InfoTile icon={<Clock className="w-5 h-5 text-orange-500" />} label="Giờ mở cửa" value={`${location.opening_hour?.slice(0, 5) || '--:--'} - ${location.closing_hour?.slice(0, 5) || '--:--'}`} />
+                <InfoTile 
+                  icon={<Clock className={cn("w-5 h-5", openingStatus.isOpen ? "text-emerald-500" : "text-slate-400")} />} 
+                  label="Trạng thái" 
+                  value={
+                    <span className={openingStatus.isOpen ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}>
+                      {openingStatus.status}
+                    </span>
+                  } 
+                />
+                <InfoTile 
+                  icon={<Clock className="w-5 h-5 text-orange-500" />} 
+                  label="Giờ mở cửa" 
+                  value={
+                    location.opening_hour && location.closing_hour
+                      ? `${location.opening_hour.slice(0, 5)} - ${location.closing_hour.slice(0, 5)}`
+                      : 'Chưa cập nhật'
+                  } 
+                />
                 <InfoTile icon={<MapPin className="w-5 h-5 text-orange-500" />} label="Khoảng cách" value={humanizeDistance(coords?.lat, coords?.lng, location.latitude, location.longitude)} />
               </div>
             </Surface>
@@ -322,12 +378,13 @@ export default function LocationDetail() {
         onClose={() => setIsBookingOpen(false)}
         locationId={location.location_id}
         locationName={location.name}
+        onSuccess={() => setVisitStatus('PENDING')}
       />
     </PageShell>
   );
 }
 
-function InfoTile({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function InfoTile({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
   return (
     <div className="rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 p-4 min-h-28">
       <div className="mb-3">{icon}</div>

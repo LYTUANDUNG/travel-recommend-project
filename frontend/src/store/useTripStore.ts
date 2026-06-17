@@ -59,7 +59,7 @@ export const useTripStore = create<TripStore>()(
         }));
         
         try {
-          await api.client.post(`/trips/sync?userId=${userId}`, payload);
+          await api.client.post(`/trips/sync`, payload);
         } catch (error) {
           console.error("Sync failed", error);
         }
@@ -67,7 +67,7 @@ export const useTripStore = create<TripStore>()(
       
       loadFromBackend: async (userId: number) => {
         try {
-          const res = await api.client.get(`/trips/user/${userId}`);
+          const res = await api.client.get(`/trips/my`);
           if (res.data.success && res.data.data.length > 0) {
             // Take the first trip and its locations
             const trip = res.data.data[0];

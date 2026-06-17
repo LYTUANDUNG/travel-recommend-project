@@ -25,6 +25,9 @@ dependencies {
 
     // Redis for Caching Recommendations
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+    // Resilience4j for Circuit Breaker
+    implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
 }
 
 tasks.named("jar") {
