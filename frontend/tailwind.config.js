@@ -8,25 +8,26 @@ export default {
     extend: {
       colors: {
         primary: {
-          50: '#f0f9ff',
-          100: '#e0f2fe',
-          200: '#bae6fd',
-          300: '#7dd3fc',
-          400: '#38bdf8',
-          500: '#06b6d4', // Premium Cyan/Sky
-          600: '#0891b2',
-          700: '#0e7490',
-          800: '#155e75',
-          900: '#164e63',
+          50: '#fff7ed',
+          100: '#ffedd5',
+          200: '#fed7aa',
+          300: '#fdbb74',
+          400: '#fb923c',
+          500: '#f97316', // Unified Brand Orange
+          600: '#ea580c',
+          700: '#c2410c',
+          800: '#9a3412',
+          900: '#7c2d12',
         },
         accent: {
-          50: '#fdf4ff',
-          100: '#fae8ff',
-          200: '#f5d0fe',
-          300: '#f0abfc',
-          400: '#e879f9',
-          500: '#d946ef',
-          600: '#c026d3',
+          50: '#fffbeb',
+          100: '#fef3c7',
+          200: '#fde68a',
+          300: '#fcd34d',
+          400: '#fbbf24',
+          500: '#f59e0b', // Unified Amber
+          600: '#d97706',
+          700: '#b45309',
         },
         premium: {
           bg: '#F8FAFC', // Slate 50
@@ -39,7 +40,7 @@ export default {
         '4xl': '2rem',
       },
       boxShadow: {
-        'soft': '0 4px 20px -2px rgba(0, 180, 216, 0.08)',
+        'soft': '0 4px 20px -2px rgba(249, 115, 22, 0.08)',
         'premium': '0 20px 50px -12px rgba(0, 0, 0, 0.05)',
         'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
       },

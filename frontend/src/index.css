@@ -3,20 +3,9 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --color-primary: 249 115 22; /* Warm Orange (#f97316) */
-    --color-secondary: 245 158 11; /* Warm Amber (#f59e0b) */
-    --color-accent: 254 243 199; /* Warm Yellow Light */
-    --color-bg-light: 255 254 250; /* Pearl White */
-    
-    --primary: 24 96% 53%; /* Warm Orange HSL matching #f97316 */
-    --primary-foreground: 0 0% 100%;
-    --accent-vibrant: 35 92% 50%; /* Warm Amber HSL matching #f59e0b */
-  }
-
   body {
     font-family: 'Be Vietnam Pro', sans-serif;
-    @apply text-slate-800 bg-white dark:bg-slate-950 dark:text-slate-100 transition-colors duration-300 antialiased;
+    @apply text-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-300 antialiased;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -41,11 +30,6 @@
 
 .glass-panel {
   @apply bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800;
-}
-
-.text-reveal {
-  /* Đã lược bỏ text-reveal animation để giao diện tải mượt hơn */
-  opacity: 1;
 }
 
 .card-hover {
@@ -96,39 +80,4 @@
   width: 100%;
   border-radius: 1.5rem;
   z-index: 0;
-}
-
-/* Fallback/Force Utilities to ensure buttons are visible immediately without restart */
-@layer utilities {
-  .bg-primary-500 {
-    background-color: #f97316 !important;
-  }
-  
-  .bg-primary-600 {
-    background-color: #ea580c !important;
-  }
-
-  .hover\:bg-primary-700:hover {
-    background-color: #c2410c !important;
-  }
-
-  .text-primary-600 {
-    color: #ea580c !important;
-  }
-
-  .focus\:ring-primary-500:focus {
-    --tw-ring-color: #f97316 !important;
-  }
-
-  .text-primary-500 {
-    color: #f97316 !important;
-  }
-
-  .text-primary-700 {
-    color: #c2410c !important;
-  }
-
-  .bg-secondary-500 {
-    background-color: #f59e0b !important;
-  }
 }

@@ -73,11 +73,11 @@ export default function LocationCard({ location, className, onClick, userLat, us
       )}
     >
       {/* Image Container */}
-      <div className="relative h-48 overflow-hidden shrink-0">
+      <div className="relative h-48 overflow-hidden rounded-t-2xl shrink-0 isolate">
         <img
           src={location.thumbnail_url || (location.images && location.images[0]) || 'https://images.unsplash.com/photo-1506929562872-bb421503ef21?q=80&w=2568&auto=format&fit=crop'}
           alt={location.name}
-          className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700"
+          className="w-full h-full object-cover rounded-t-2xl transform group-hover:scale-110 transition-transform duration-550 ease-out"
         />
 
         {/* Overlay Gradient */}

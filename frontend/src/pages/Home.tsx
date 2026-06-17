@@ -13,6 +13,13 @@ import {
     TrendingUp, 
     ArrowRight, 
     Coffee, 
+    UtensilsCrossed,
+    Soup,
+    Beer,
+    Pizza,
+    Cake,
+    Church,
+    Flower2,
     Bed, 
     Home as HomeIcon, 
     Utensils, 
@@ -22,16 +29,15 @@ import {
     Camera, 
     Eye, 
     VolumeX, 
-    Star, 
-    Bookmark,
     ChevronLeft,
     ChevronRight,
-    ArrowUpRight,
-    Map
+    BookOpen
 } from 'lucide-react';
 import OnboardingModal from '../components/OnboardingModal';
 import { useGeoLocation } from '../hooks/useGeoLocation';
 import { useFavoriteStore } from '../store/useFavoriteStore';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
 
 interface CategoryTemplate {
     name: string;
@@ -45,7 +51,7 @@ export default function Home() {
   const { coords } = useGeoLocation();
   const { locations, setLocations, setLoading, loading } = useLocationStore();
   const { isAuthenticated, user } = useAuthStore();
-  const { recommendations, loading: recLoading } = useRecommendations();
+  const { recommendations } = useRecommendations();
   
   const navigate = useNavigate();
   const [banners, setBanners] = useState<any[]>([]);
@@ -53,13 +59,10 @@ export default function Home() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Page states for pagination
   const [currentPage, setCurrentPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const pageSize = 12;
 
-  // New States
-  const [newestLocations, setNewestLocations] = useState<any[]>([]);
   const [blogs, setBlogs] = useState<any[]>([]);
   const [activeCategories, setActiveCategories] = useState<any[]>([]);
   const [totalLocations, setTotalLocations] = useState(0);
@@ -67,18 +70,15 @@ export default function Home() {
 
   const categoryScrollRef = useRef<HTMLDivElement>(null);
 
-  // Category template with beautiful colors and matching VinaTravel icons
   const categoryTemplates: CategoryTemplate[] = [
-    { name: 'Quán cà phê', icon: Coffee, color: 'text-orange-500', bgColor: 'bg-orange-50 dark:bg-orange-950/30', fallbackCount: 505 },
-    { name: 'Khách sạn', icon: Bed, color: 'text-blue-500', bgColor: 'bg-blue-50 dark:bg-blue-950/30', fallbackCount: 42 },
-    { name: 'Homestay', icon: HomeIcon, color: 'text-emerald-500', bgColor: 'bg-emerald-50 dark:bg-emerald-950/30', fallbackCount: 18 },
-    { name: 'Ăn uống', icon: Utensils, color: 'text-amber-500', bgColor: 'bg-amber-50 dark:bg-amber-950/30', fallbackCount: 144 },
-    { name: 'Hẹn hò', icon: Heart, color: 'text-rose-500', bgColor: 'bg-rose-50 dark:bg-rose-950/30', fallbackCount: 88 },
-    { name: 'Tụ tập', icon: Users, color: 'text-indigo-500', bgColor: 'bg-indigo-50 dark:bg-indigo-950/30', fallbackCount: 40 },
-    { name: 'Làm việc', icon: Laptop, color: 'text-green-500', bgColor: 'bg-green-50 dark:bg-green-950/30', fallbackCount: 35 },
-    { name: 'Sống ảo', icon: Camera, color: 'text-purple-500', bgColor: 'bg-purple-50 dark:bg-purple-950/30', fallbackCount: 197 },
-    { name: 'View đẹp', icon: Eye, color: 'text-teal-500', bgColor: 'bg-teal-50 dark:bg-teal-950/30', fallbackCount: 38 },
-    { name: 'Yên tĩnh', icon: VolumeX, color: 'text-sky-500', bgColor: 'bg-sky-50 dark:bg-sky-950/30', fallbackCount: 28 },
+    { name: 'Nhà hàng', icon: UtensilsCrossed, color: 'text-red-500', bgColor: 'bg-red-50 dark:bg-red-950/30', fallbackCount: 6 },
+    { name: 'Quán ăn', icon: Soup, color: 'text-amber-500', bgColor: 'bg-amber-50 dark:bg-amber-950/30', fallbackCount: 16 },
+    { name: 'Quán cà phê', icon: Coffee, color: 'text-orange-500', bgColor: 'bg-orange-50 dark:bg-orange-950/30', fallbackCount: 4 },
+    { name: 'Quán nhậu / Bar', icon: Beer, color: 'text-purple-500', bgColor: 'bg-purple-50 dark:bg-purple-950/30', fallbackCount: 8 },
+    { name: 'Đồ ăn nhanh', icon: Pizza, color: 'text-yellow-500', bgColor: 'bg-yellow-50 dark:bg-yellow-950/30', fallbackCount: 9 },
+    { name: 'Tiệm bánh', icon: Cake, color: 'text-rose-500', bgColor: 'bg-rose-50 dark:bg-rose-950/30', fallbackCount: 1 },
+    { name: 'Nhà thờ', icon: Church, color: 'text-blue-500', bgColor: 'bg-blue-50 dark:bg-blue-950/30', fallbackCount: 1 },
+    { name: 'Tịnh thất', icon: Flower2, color: 'text-emerald-500', bgColor: 'bg-emerald-50 dark:bg-emerald-950/30', fallbackCount: 1 },
   ];
 
   useEffect(() => {
@@ -91,12 +91,10 @@ export default function Home() {
       api.blog.getAll(),
       api.client.get('/banners/active')
     ]).then(([activeCategoriesRes, paginatedLocationsRes, newestLocationsRes, blogsRes, bannersRes]) => {
-      // 1. Process Active Categories
       if (activeCategoriesRes.status === 'fulfilled' && activeCategoriesRes.value.success) {
         setActiveCategories(activeCategoriesRes.value.data);
       }
 
-      // 2. Process Paginated Locations (initial chunk)
       if (paginatedLocationsRes.status === 'fulfilled' && paginatedLocationsRes.value.success && paginatedLocationsRes.value.data) {
         const data = paginatedLocationsRes.value.data;
         setLocations(data.content || []);
@@ -104,21 +102,12 @@ export default function Home() {
         setHasMore((data.content || []).length === pageSize);
       }
 
-      // 3. Process Newest Locations
-      if (newestLocationsRes.status === 'fulfilled' && newestLocationsRes.value.success && newestLocationsRes.value.data) {
-        setNewestLocations(newestLocationsRes.value.data.content || []);
-      }
-
-      // 4. Process Blogs
       if (blogsRes.status === 'fulfilled' && blogsRes.value.success && blogsRes.value.data) {
         const rawData = blogsRes.value.data as any;
-        const blogData = Array.isArray(rawData) 
-          ? rawData 
-          : (rawData.content || []);
+        const blogData = Array.isArray(rawData) ? rawData : (rawData.content || []);
         setBlogs(blogData.slice(0, 3));
       }
 
-      // 5. Process Banners
       if (bannersRes.status === 'fulfilled') {
         const resData = bannersRes.value.data;
         if (resData?.success && resData.data && resData.data.length > 0) {
@@ -139,7 +128,6 @@ export default function Home() {
     });
   }, []);
 
-  // Load More Locations (Paginated to prevent BE overload)
   const loadMoreLocations = () => {
     if (loading) return;
     const nextPage = currentPage + 1;
@@ -156,7 +144,6 @@ export default function Home() {
     }).finally(() => setLoading(false));
   };
 
-  // Banner Auto-Slide
   useEffect(() => {
     if (banners.length <= 1) return;
     const timer = setInterval(() => {
@@ -167,7 +154,6 @@ export default function Home() {
 
   const { fetchFavorites } = useFavoriteStore();
 
-  // Check For New Users (Cold Start AI)
   useEffect(() => {
       if (isAuthenticated && user) {
           fetchFavorites(user.user_id);
@@ -190,7 +176,6 @@ export default function Home() {
       if (user) localStorage.setItem(`onboarded_${user.user_id}`, 'true');
   };
 
-  // Dynamic count calculator reading from pre-aggregated backend data
   const getLocCount = (catName: string) => {
       const activeCat = activeCategories.find((c: any) => 
           c.name?.toLowerCase().includes(catName.toLowerCase()) ||
@@ -202,7 +187,6 @@ export default function Home() {
               return count;
           }
       }
-      // Fallback count from templates
       const template = categoryTemplates.find(t => 
           t.name.toLowerCase().includes(catName.toLowerCase()) ||
           catName.toLowerCase().includes(t.name.toLowerCase())
@@ -217,9 +201,7 @@ export default function Home() {
       ) || categoryTemplates[0];
   };
 
-  const displayedCategories = activeCategories.length > 0
-      ? activeCategories.map((cat: any) => cat.name).filter(Boolean)
-      : categoryTemplates.map(cat => cat.name);
+  const displayedCategories = categoryTemplates.map(cat => cat.name);
 
   const scrollCategory = (direction: 'left' | 'right') => {
       if (categoryScrollRef.current) {
@@ -236,197 +218,101 @@ export default function Home() {
       );
 
   return (
-    <div className="flex flex-col gap-12 pb-20 animate-in fade-in duration-700">
+    <div className="flex flex-col gap-8 pb-16 animate-in fade-in duration-500">
       
       {/* ==================================================== */}
-      {/* SECTION 1: MASTER BENTO HERO & MAP GIS INTEGRATION   */}
+      {/* HERO SECTION                                         */}
       {/* ==================================================== */}
-      <section className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Main Hero Slider (Spans 8 columns) */}
-          {/* Main Hero Slider (Spans 8 columns) */}
-          <div 
-            onClick={() => {
-                const current = banners[currentBanner];
-                if (current && current.link) {
-                    const trimmed = current.link.trim();
-                    if (trimmed) {
-                        if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('//')) {
-                            window.open(trimmed, '_blank', 'noopener,noreferrer');
-                        } else if (trimmed.startsWith('www.')) {
-                            window.open(`https://${trimmed}`, '_blank', 'noopener,noreferrer');
-                        } else {
-                            const path = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
-                            navigate(path);
-                        }
-                    }
-                }
-            }}
-            className={`lg:col-span-8 relative h-[360px] lg:h-[420px] rounded-2xl overflow-hidden shadow-sm group border border-slate-200/70 dark:border-slate-800 ${banners[currentBanner]?.link?.trim() ? 'cursor-pointer hover:brightness-[0.98] transition-all duration-300' : ''}`}
-          >
-            {banners.map((b, idx) => (
-                <div 
-                    key={b.id || idx} 
-                    className={`absolute inset-0 transition-all duration-1000 ${idx === currentBanner ? 'opacity-100 z-10 pointer-events-auto' : 'opacity-0 z-0 pointer-events-none'}`}
-                >
-                    <img 
-                      src={b.image_url || b.imageUrl} 
-                      alt={b.title} 
-                      className="w-full h-full object-cover scale-100 group-hover:scale-[1.01] transition-transform duration-1000" 
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/15" />
-                </div>
-            ))}
-
-            <div className="absolute bottom-8 left-8 right-8 z-20 pointer-events-none flex flex-col items-start">
-                <span className="text-[10px] font-black uppercase tracking-widest bg-orange-500 text-white px-3 py-1 rounded-full shadow-lg shadow-orange-500/20">
-                    {banners[currentBanner]?.id === 'dev1' || banners[currentBanner]?.id === 'dev2'
-                        ? "Ứng dụng Du Lịch Đồ Án v3.5"
-                        : "Quảng cáo tài trợ"}
-                </span>
-                <h1 className="text-3xl lg:text-4xl font-black text-white mt-4 mb-2 leading-tight tracking-tight drop-shadow-md whitespace-pre-line">
-                    {banners[currentBanner]?.title || "Khám phá.\nTrải nghiệm cùng VinaTravel."}
-                </h1>
-                <p className="text-white/85 text-xs lg:text-sm font-semibold max-w-2xl mt-2 drop-shadow">
-                    {banners[currentBanner]?.id === 'dev1'
-                        ? "Lập kế hoạch thông minh cho chuyến đi hoàn hảo của bạn với các gợi ý cá nhân hóa theo sở thích thực tế."
-                        : banners[currentBanner]?.id === 'dev2'
-                        ? "Hỏi trợ lý AI thông minh để tìm những địa điểm lưu trú, quán cafe có view sống ảo chụp hình cực chất."
-                        : banners[currentBanner]?.link
-                        ? "Chương trình tài trợ quảng cáo hấp dẫn. Click để khám phá ngay ưu đãi đặc biệt!"
-                        : "Khám phá địa điểm du lịch, khách sạn và ẩm thực đặc sắc ba miền."}
-                </p>
-
-                {banners[currentBanner]?.link?.trim() && (
-                    <div className="pointer-events-auto mt-4">
-                        <button 
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                const trimmed = banners[currentBanner].link.trim();
-                                if (trimmed) {
-                                    if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('//')) {
-                                        window.open(trimmed, '_blank', 'noopener,noreferrer');
-                                    } else if (trimmed.startsWith('www.')) {
-                                        window.open(`https://${trimmed}`, '_blank', 'noopener,noreferrer');
-                                    } else {
-                                        const path = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
-                                        navigate(path);
-                                    }
-                                }
-                            }}
-                            className="px-5 py-2.5 bg-white text-slate-900 rounded-xl font-extrabold text-xs hover:scale-105 active:scale-95 hover:bg-orange-500 hover:text-white transition-all flex items-center gap-1.5 shadow-lg shadow-black/15 cursor-pointer border border-transparent"
-                        >
-                            Khám phá ngay <ArrowUpRight className="w-3.5 h-3.5" />
-                        </button>
-                    </div>
-                )}
-            </div>
-
-            {/* Glassmorphic inline search on desktop */}
-            <div 
-                onClick={(e) => e.stopPropagation()}
-                className="absolute top-6 left-6 right-6 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/80 p-1.5 rounded-2xl flex items-center shadow-lg hidden md:flex"
-            >
-                <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center text-white shrink-0 ml-1 shadow-md shadow-orange-500/10">
-                    <Search className="w-4 h-4" />
-                </div>
-                <input 
-                    type="text" 
-                    placeholder="Tìm kiếm quán cafe đẹp, homestay xinh..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && navigate(`/explore?q=${searchQuery}`)}
-                    className="w-full bg-transparent border-none outline-none text-slate-800 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400 font-bold px-4 text-xs"
-                />
-                <button 
-                    onClick={() => navigate(`/explore?q=${searchQuery}`)} 
-                    className="px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold text-xs hover:scale-105 active:scale-95 transition-all mr-1 shadow-md"
-                >
-                    Đi thôi!
-                </button>
-            </div>
-          </div>
-
-          {/* Right Side Map Bento Column (Spans 4 columns) */}
-          <div className="lg:col-span-4 flex flex-col gap-6">
-              {/* Dynamic Map GIS Card */}
+      <section className="relative h-[480px] rounded-3xl overflow-hidden shadow-premium">
+          {banners.map((b, idx) => (
               <div 
-                onClick={() => navigate('/map')}
-                className="flex-1 min-h-[220px] rounded-2xl bg-slate-900 p-6 text-white relative overflow-hidden shadow-sm flex flex-col justify-between group cursor-pointer hover:shadow-lg transition-all border border-slate-800"
+                  key={b.id || idx} 
+                  className={`absolute inset-0 transition-all duration-1000 ${idx === currentBanner ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
               >
-                  {/* Map Layer Background */}
-                  <div className="absolute inset-0 z-0 opacity-40 group-hover:opacity-60 transition-opacity duration-700">
-                      <MapView 
-                          locations={locations.slice(0, 3)} 
-                          center={coords ? [coords.lat, coords.lng] : undefined} 
-                          zoom={12} 
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/60 to-transparent z-10 pointer-events-none" />
-                  </div>
+                  <img 
+                    src={b.image_url || b.imageUrl} 
+                    alt={b.title} 
+                    className="w-full h-full object-cover" 
+                  />
+              </div>
+          ))}
+          {/* Strict Dark Overlay */}
+          <div className="absolute inset-0 bg-black/40 z-10" />
 
-                  <div className="relative z-20">
-                      <div className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center mb-4 border border-white/20">
-                          <MapPin className="w-5 h-5 text-white" />
-                      </div>
-                      <h3 className="text-xl font-black leading-tight tracking-tight drop-shadow-sm">Bản đồ GIS</h3>
-                      <p className="text-white/80 font-medium text-[11px] mt-1 max-w-[180px]">Định vị thông minh hàng ngàn địa điểm giải trí quanh bạn.</p>
+          {/* Centered Content */}
+          <div className="relative z-20 flex flex-col items-center justify-center text-center h-full px-6 gap-6 max-w-3xl mx-auto">
+              <h1 className="text-4xl md:text-5xl font-bold text-white leading-tight font-sans">
+                  {banners[currentBanner]?.title || "Khám phá trải nghiệm du lịch tuyệt vời"}
+              </h1>
+              
+              {/* Large, rounded-full search bar */}
+              <div className="w-full bg-white dark:bg-slate-900 rounded-full shadow-lg p-1.5 flex items-center gap-2 h-14">
+                  <div className="pl-4 text-slate-400">
+                      <Search className="w-5 h-5" />
                   </div>
-                  <div className="relative z-20 flex justify-end mt-4">
-                      <button className="w-10 h-10 bg-orange-500 text-white rounded-full flex items-center justify-center group-hover:scale-110 group-hover:shadow-[0_0_15px_rgba(249,115,22,0.35)] transition-all shadow-md">
-                          <ArrowRight className="w-4 h-4" />
-                      </button>
-                  </div>
+                  <input 
+                      type="text" 
+                      placeholder="Tìm kiếm địa điểm du lịch, ẩm thực, lưu trú..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && navigate(`/explore?q=${searchQuery}`)}
+                      className="w-full bg-transparent border-none outline-none text-slate-800 dark:text-white placeholder:text-slate-400 font-medium px-2 text-sm"
+                  />
+                  <Button 
+                      variant="primary"
+                      onClick={() => navigate(`/explore?q=${searchQuery}`)}
+                      className="rounded-full h-11 px-8 text-sm font-semibold shadow-md shrink-0 mr-1"
+                  >
+                      Tìm kiếm
+                  </Button>
               </div>
           </div>
       </section>
 
       {/* ==================================================== */}
-      {/* SECTION 2: CATEGORY HORIZONTAL SLIDER (VinaTravel theme) */}
+      {/* CATEGORY SLIDER                                      */}
       {/* ==================================================== */}
-      <section className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/50 dark:border-slate-850/50 shadow-[0_4px_20px_rgba(0,0,0,0.01)] relative">
+      <Card variant="raised" padding="md" className="relative">
           <div className="flex items-center justify-between mb-6">
               <div>
-                  <h2 className="font-serif text-2xl font-black text-slate-900 dark:text-white leading-tight">
+                  <h2 className="text-2xl font-semibold text-slate-900 dark:text-white leading-tight font-sans">
                       Khám phá theo nhu cầu
                   </h2>
-                  <p className="text-slate-400 dark:text-slate-500 font-bold text-xs mt-1">Lựa chọn của bạn là gì?</p>
               </div>
               
-              {/* Scroll controls */}
               <div className="flex gap-2">
                   <button 
                       onClick={() => scrollCategory('left')}
-                      className="p-1.5 rounded-lg border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 text-slate-500 dark:text-slate-400"
+                      className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 transition-colors"
                   >
                       <ChevronLeft className="w-4 h-4" />
                   </button>
                   <button 
                       onClick={() => scrollCategory('right')}
-                      className="p-1.5 rounded-lg border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 text-slate-500 dark:text-slate-400"
+                      className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 transition-colors"
                   >
                       <ChevronRight className="w-4 h-4" />
                   </button>
               </div>
           </div>
 
-          {/* Horizontal Scrolling Row */}
           <div 
               ref={categoryScrollRef}
               className="flex items-center gap-4 overflow-x-auto no-scrollbar py-2"
           >
-              {/* Category: All */}
               <button 
                   onClick={() => setSelectedCategoryName('Tất cả')}
-                  className={`flex flex-col items-center justify-center p-4 rounded-2xl min-w-[100px] border transition-all duration-300
+                  className={`flex flex-col items-center justify-center p-4 rounded-2xl min-w-[110px] border transition-all duration-300
                       ${selectedCategoryName === 'Tất cả'
-                          ? 'bg-orange-50 border-orange-200 text-orange-600 dark:bg-orange-950/20 dark:border-orange-900/50 dark:text-orange-400 shadow-md shadow-orange-500/5'
-                          : 'bg-white border-slate-100 dark:bg-slate-900 dark:border-slate-800/80 hover:scale-105'
+                          ? 'bg-primary-50 border-primary-200 text-primary-600 dark:bg-primary-950/20 dark:border-primary-900/50 dark:text-primary-400'
+                          : 'bg-white border-slate-100 dark:bg-slate-900 dark:border-slate-850 hover:scale-105'
                       }`}
               >
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 bg-slate-50 dark:bg-slate-800`}>
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3 bg-slate-50 dark:bg-slate-800">
                       <Compass className="w-5 h-5 text-slate-500" />
                   </div>
-                  <span className="text-[11px] font-black tracking-tight truncate w-full text-center">Tất cả</span>
-                  <span className="text-[9px] font-bold text-slate-400 mt-1">{totalLocations || locations.length} điểm</span>
+                  <span className="text-xs font-bold text-center">Tất cả</span>
+                  <span className="text-[10px] font-medium text-slate-400 mt-1">{totalLocations || locations.length} điểm</span>
               </button>
 
               {displayedCategories.map((catName) => {
@@ -442,61 +328,57 @@ export default function Home() {
                               setSelectedCategoryName(catName);
                               navigate(`/explore?category=${catName}`);
                           }}
-                          className={`flex flex-col items-center justify-center p-4 rounded-2xl min-w-[100px] border transition-all duration-300
+                          className={`flex flex-col items-center justify-center p-4 rounded-2xl min-w-[110px] border transition-all duration-300
                               ${isSelected
-                                  ? 'bg-orange-50 border-orange-200 text-orange-600 dark:bg-orange-950/20 dark:border-orange-900/50 dark:text-orange-400 shadow-md shadow-orange-500/5'
-                                  : 'bg-white border-slate-100 dark:bg-slate-900 dark:border-slate-800/80 hover:scale-105'
+                                  ? 'bg-primary-50 border-primary-200 text-primary-600 dark:bg-primary-950/20 dark:border-primary-900/50'
+                                  : 'bg-white border-slate-100 dark:bg-slate-900 dark:border-slate-850 hover:scale-105'
                               }`}
                       >
                           <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 ${cat.bgColor}`}>
                               <Icon className={`w-5 h-5 ${cat.color}`} />
                           </div>
-                          <span className="text-[11px] font-black tracking-tight truncate w-full text-center">{catName}</span>
-                          <span className="text-[9px] font-bold text-slate-400 mt-1">{count} điểm</span>
+                          <span className="text-xs font-bold text-center">{catName}</span>
+                          <span className="text-[10px] font-medium text-slate-400 mt-1">{count} điểm</span>
                       </button>
                   );
               })}
           </div>
-      </section>
+      </Card>
 
       {/* ==================================================== */}
-      {/* SECTION 3: PERSONALIZED RECOMMENDATIONS (AI ENGINE) */}
+      {/* PERSONALIZED RECOMMENDATIONS                         */}
       {/* ==================================================== */}
       {isAuthenticated && recommendations.length > 0 && (
-          <section className="bg-gradient-to-tr from-blue-500/5 via-indigo-500/5 to-transparent p-6 rounded-3xl border border-blue-500/10 shadow-[0_4px_25px_rgba(37,99,235,0.02)]">
-             <div className="mb-6 flex justify-between items-end">
-                <div>
-                    <h2 className="font-serif text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                       <TrendingUp className="w-5 h-5 text-blue-500 shrink-0 animate-bounce" /> Gợi ý dành riêng cho {user?.full_name?.split(' ').pop()}
-                    </h2>
-                    <p className="text-slate-400 dark:text-slate-500 font-bold text-xs mt-1">Gợi ý dựa trên sở thích, đánh giá và địa điểm bạn đã quan tâm.</p>
-                </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {recommendations.slice(0, 4).map((loc: any) => (
-                    <LocationCard key={`rec-${loc.location_id || loc.id}`} location={loc} userLat={coords?.lat} userLng={coords?.lng} />
-                ))}
-            </div>
+          <section className="bg-gradient-to-tr from-primary-500/5 to-transparent p-6 rounded-3xl border border-primary-500/10">
+             <div className="mb-6">
+                <h2 className="text-2xl font-semibold text-slate-900 dark:text-white flex items-center gap-2 font-sans">
+                   <TrendingUp className="w-5 h-5 text-primary-500" /> Gợi ý dành riêng cho bạn
+                </h2>
+             </div>
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                 {recommendations.slice(0, 4).map((loc: any) => (
+                     <LocationCard key={`rec-${loc.location_id || loc.id}`} location={loc} userLat={coords?.lat} userLng={coords?.lng} />
+                 ))}
+             </div>
           </section>
       )}
 
       {/* ==================================================== */}
-      {/* SECTION 4: CAFE RECOMMENDATIONS (SCREENSHOT REPLICATED) */}
+      {/* CAFE RECOMMENDATIONS                                 */}
       {/* ==================================================== */}
-      <section>
-          <div className="flex items-center justify-between mb-6">
-              <div>
-                  <h2 className="font-serif text-2xl font-black text-slate-900 dark:text-white leading-tight">
-                      Gợi ý Cà phê tại <span className="text-orange-500">Thành phố Hồ Chí Minh</span>
-                  </h2>
-                  <p className="text-slate-400 dark:text-slate-500 font-bold text-xs mt-1">Các quán cà phê được check-in nhiều nhất trên VinaTravel.</p>
-              </div>
-              <button 
+      <Card variant="raised" padding="md" className="flex flex-col gap-6">
+          <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-semibold text-slate-900 dark:text-white font-sans">
+                  Cà phê tại <span className="text-primary-500">TP. Hồ Chí Minh</span>
+              </h2>
+              <Button 
+                  variant="ghost"
+                  size="sm"
                   onClick={() => navigate('/explore?category=Quán cà phê')}
-                  className="text-orange-500 hover:text-orange-600 font-extrabold text-xs flex items-center gap-1.5 group"
+                  className="text-primary-500 font-semibold flex items-center gap-1 group"
               >
                   Xem tất cả <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-              </button>
+              </Button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -506,7 +388,6 @@ export default function Home() {
               ).slice(0, 4).map((loc) => (
                   <LocationCard key={`cafe-${loc.location_id}`} location={loc} userLat={coords?.lat} userLng={coords?.lng} />
               ))}
-              {/* Fallback if no specific cafe locations, just use featured ones */}
               {locations.filter(loc => 
                   loc.category_name?.toLowerCase().includes('cà phê') ||
                   loc.category?.name?.toLowerCase().includes('cà phê')
@@ -514,19 +395,18 @@ export default function Home() {
                   <LocationCard key={`cafe-fb-${loc.location_id}`} location={loc} userLat={coords?.lat} userLng={coords?.lng} />
               ))}
           </div>
-      </section>
+      </Card>
 
       {/* ==================================================== */}
-      {/* SECTION 5: GEOGRAPHIC/GIS NEARBY RECOMMENDATIONS     */}
+      {/* GIS NEARBY                                           */}
       {/* ==================================================== */}
       {coords && locations.length > 0 && (
-          <section className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/50 dark:border-slate-850/50 shadow-[0_4px_20px_rgba(0,0,0,0.01)]">
-             <div className="mb-6">
-                <h2 className="font-serif text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-red-500 shrink-0" /> Quanh đây có gì vui?
+          <Card variant="raised" padding="md" className="flex flex-col gap-6">
+             <div>
+                <h2 className="text-2xl font-semibold text-slate-900 dark:text-white flex items-center gap-2 font-sans">
+                  <MapPin className="w-5 h-5 text-red-500" /> Quanh đây có gì vui
                 </h2>
-                <p className="text-slate-400 dark:text-slate-500 font-bold text-xs mt-1">Đề xuất các địa điểm cách bạn chỉ vài trăm mét.</p>
-            </div>
+             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[...locations]
                     .filter(loc => loc.latitude && loc.longitude)
@@ -540,28 +420,23 @@ export default function Home() {
                     <LocationCard key={`nearby-${loc.location_id}`} location={loc} userLat={coords.lat} userLng={coords.lng} />
                 ))}
             </div>
-          </section>
+          </Card>
       )}
 
       {/* ==================================================== */}
-      {/* SECTION 6: KHO ĐỊA ĐIỂM TỔNG HỢP (PAGINATED CHUNKS) */}
+      {/* COMPREHENSIVE LOCATIONS GRID                         */}
       {/* ==================================================== */}
-      <section className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/50 dark:border-slate-850/50 shadow-[0_4px_20px_rgba(0,0,0,0.01)]">
-        <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100 dark:border-slate-800">
-          <div>
-            <h2 className="font-serif text-2xl font-black text-slate-900 dark:text-white leading-tight">
+      <Card variant="raised" padding="md" className="flex flex-col gap-6">
+        <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
+            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white font-sans">
                Kho địa điểm ăn chơi tổng hợp
             </h2>
-            <p className="text-slate-400 dark:text-slate-500 font-bold text-xs mt-1">
-               {selectedCategoryName === 'Tất cả' ? 'Toàn bộ kho dữ liệu thực tế' : `Lọc theo danh mục: ${selectedCategoryName}`}
-            </p>
-          </div>
         </div>
 
         {loading && filteredLocations.length === 0 ? (
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
              {[1, 2, 3, 4].map(i => (
-               <div key={i} className="h-72 bg-slate-100 dark:bg-slate-800 rounded-2xl animate-pulse" />
+                <div key={i} className="h-72 bg-slate-150 dark:bg-slate-800 rounded-2xl animate-pulse" />
              ))}
            </div>
         ) : (
@@ -572,40 +447,38 @@ export default function Home() {
                ))}
              </div>
 
-             {/* Paginated Load More Button to prevent Spring Boot overload */}
              {hasMore && selectedCategoryName === 'Tất cả' && (
                  <div className="flex justify-center mt-4">
-                     <button 
+                     <Button 
                          onClick={loadMoreLocations}
-                         disabled={loading}
-                         className="px-8 py-3.5 bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-extrabold text-xs rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-md shrink-0 flex items-center gap-2"
+                         loading={loading}
+                         variant="secondary"
+                         className="flex items-center gap-1.5 shadow-sm"
                      >
-                         {loading ? 'Đang kết nối BE...' : 'Xem thêm địa điểm'}
-                         <ChevronRight className="w-4 h-4" />
-                     </button>
+                         Xem thêm địa điểm <ChevronRight className="w-4 h-4" />
+                     </Button>
                  </div>
              )}
            </div>
         )}
-      </section>
+      </Card>
 
       {/* ==================================================== */}
-      {/* SECTION 7: TRAVEL BLOGS & USER GUIDE (CẨM NANG)    */}
+      {/* TRAVEL BLOGS                                         */}
       {/* ==================================================== */}
-      <section className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/80 p-8 rounded-2xl shadow-[0_4px_25px_rgba(0,0,0,0.01)]">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="font-serif text-2xl font-black text-slate-900 dark:text-white leading-tight">
+      <Card variant="raised" padding="lg" className="flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white font-sans">
                Cẩm nang Du lịch & Tin tức
             </h2>
-            <p className="text-slate-400 dark:text-slate-500 font-bold text-xs mt-1">Cập nhật xu hướng du lịch khám phá hàng đầu.</p>
-          </div>
-          <button 
+          <Button 
               onClick={() => navigate('/blog')}
-              className="text-slate-700 bg-slate-50 border border-slate-100 hover:bg-slate-100 dark:text-slate-300 dark:bg-slate-800 dark:border-slate-700 px-5 py-2.5 rounded-xl font-black text-xs items-center gap-1.5 flex transition-all"
+              variant="secondary"
+              size="sm"
+              className="flex items-center gap-1.5"
           >
-            Đọc thêm <ArrowRight className="w-4 h-4" />
-          </button>
+            Đọc thêm <BookOpen className="w-4 h-4" />
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -613,39 +486,39 @@ export default function Home() {
                <div 
                    key={blog.post_id} 
                    onClick={() => navigate(`/blog/${blog.post_id}`)}
-                   className="group cursor-pointer bg-white dark:bg-slate-900 rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border border-slate-100 dark:border-slate-800/80 flex flex-col h-full"
+                   className="group cursor-pointer bg-white dark:bg-slate-900 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 border border-slate-150 dark:border-slate-800 flex flex-col h-full"
                >
                   <div className="aspect-[4/3] overflow-hidden relative">
                       <img src={blog.thumbnail_url || 'https://images.unsplash.com/photo-1504280654490-255d28bba1e9?auto=format&fit=crop&w=400&q=80'} alt={blog.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   </div>
                   <div className="p-5 flex-1 flex flex-col">
-                      <div className="flex gap-2 text-[9px] font-black text-slate-400 mb-2.5 uppercase tracking-widest">
+                      <div className="flex gap-2 text-[9px] font-black text-slate-450 mb-2.5 uppercase tracking-widest">
                           <span>{new Date(blog.created_at).toLocaleDateString('vi-VN')}</span>
                           <span>•</span>
-                          <span className="text-blue-500">{blog.category_name || 'BÀI VIẾT'}</span>
+                          <span className="text-primary-500">{blog.category_name || 'BÀI VIẾT'}</span>
                       </div>
-                      <h3 className="text-sm font-black text-slate-950 dark:text-white group-hover:text-blue-500 transition-colors line-clamp-2 mb-2.5 leading-snug">
+                      <h3 className="text-sm font-bold text-slate-950 dark:text-white group-hover:text-primary-500 transition-colors line-clamp-2 mb-2.5 leading-snug font-sans">
                           {blog.title}
                       </h3>
-                      <p className="text-[11px] text-slate-400 line-clamp-2 mt-auto">
+                      <p className="text-[11px] text-slate-450 line-clamp-2 mt-auto">
                           {blog.content_summary || 'Xem cẩm nang chi tiết tại VinaTravel để có thêm kinh nghiệm hữu ích cho hành trình.'}
                       </p>
                   </div>
                </div>
            )) : (
               [1,2,3].map(i => (
-                <div key={i} className="group flex flex-col bg-white dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800">
-                   <div className="aspect-[4/3] bg-slate-100 dark:bg-slate-800 animate-pulse" />
-                   <div className="p-5">
-                       <div className="w-1/3 h-3 bg-slate-100 dark:bg-slate-800 rounded mb-2 animate-pulse" />
-                       <div className="w-3/4 h-5 bg-slate-100 dark:bg-slate-800 mb-2 rounded animate-pulse" />
-                       <div className="w-full h-3 bg-slate-100 dark:bg-slate-800 rounded animate-pulse" />
-                   </div>
-                </div>
+                 <div key={i} className="group flex flex-col bg-white dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-150 dark:border-slate-800 animate-pulse">
+                    <div className="aspect-[4/3] bg-slate-100 dark:bg-slate-800" />
+                    <div className="p-5">
+                        <div className="w-1/3 h-3 bg-slate-100 dark:bg-slate-800 rounded mb-2" />
+                        <div className="w-3/4 h-5 bg-slate-100 dark:bg-slate-800 mb-2 rounded" />
+                        <div className="w-full h-3 bg-slate-100 dark:bg-slate-800 rounded" />
+                    </div>
+                 </div>
               ))
            )}
         </div>
-      </section>
+      </Card>
 
       {showOnboarding && user && (
           <OnboardingModal user={user} onClose={handleCloseOnboarding} />

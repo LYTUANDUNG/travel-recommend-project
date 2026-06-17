@@ -142,17 +142,9 @@ export default function AdminVisits() {
                                                     <XCircle className="w-5 h-5" />
                                                 </button>
                                             </div>
-                                        ) : req.status === 'APPROVED' ? (
-                                            <button
-                                                onClick={() => handleUpdateStatus(req.id, 'COMPLETED')}
-                                                className="px-4 py-2 bg-orange-50 dark:bg-orange-950/30 hover:bg-orange-100 dark:hover:bg-orange-900/50 text-orange-600 dark:text-orange-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-[0.98] border border-orange-100 dark:border-orange-900/50 shadow-sm"
-                                                title="Đánh dấu người dùng đã đi / hoàn thành chuyến đi"
-                                            >
-                                                Hoàn thành
-                                            </button>
                                         ) : (
                                             <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                                                {req.status === 'COMPLETED' ? 'Đã đi' : 'Đã hủy'}
+                                                {req.status === 'APPROVED' || req.status === 'COMPLETED' ? 'Đã duyệt' : 'Từ chối'}
                                             </span>
                                         )}
                                     </td>

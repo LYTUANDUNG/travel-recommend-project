@@ -203,7 +203,25 @@ export default function MapView({
         const marker = L.marker([Number(loc.latitude), Number(loc.longitude)], {
             icon: showOrder ? createNumberedIcon(idx + 1) : L.divIcon({ className: 'default-marker', html: '<div style="background:#f97316;width:12px;height:12px;border-radius:50%;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.4)"></div>'})
         });
-        marker.bindPopup(`<div class="p-2 font-sans"><b>${loc.name}</b><p class="text-xs mt-1 text-slate-500">${loc.address || ''}</p></div>`);
+        
+        const ratingHtml = loc.average_rating 
+            ? `<div style="display:flex;align-items:center;gap:3px;margin-top:4px;font-size:10px;font-weight:bold;color:#f59e0b">⭐ <span>${loc.average_rating}</span> <span style="color:#94a3b8;font-weight:normal">(${loc.total_reviews || 0})</span></div>` 
+            : '';
+        const imgHtml = loc.thumbnail_url 
+            ? `<div style="width:100%;height:80px;border-radius:8px;overflow:hidden;margin-bottom:6px;background:#f1f5f9"><img src="${loc.thumbnail_url}" style="width:100%;height:100%;object-fit:cover;display:block"/></div>` 
+            : '';
+        
+        const popupContent = `
+            <div style="font-family:sans-serif;width:160px;padding:2px;line-height:1.4">
+                ${imgHtml}
+                <div style="font-weight:bold;color:#1e293b;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${loc.name}</div>
+                <div style="font-size:9px;color:#94a3b8;text-transform:uppercase;font-weight:bold;margin-top:2px">${loc.category_name || 'Khám phá'}</div>
+                ${ratingHtml}
+                <p style="font-size:9px;color:#64748b;margin-top:4px;padding-top:4px;border-top:1px solid #f1f5f9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${loc.address || ''}</p>
+            </div>
+        `;
+        
+        marker.bindPopup(popupContent);
         markersGroup.addLayer(marker);
     });
 

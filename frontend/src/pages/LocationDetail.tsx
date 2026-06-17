@@ -320,7 +320,13 @@ export default function LocationDetail() {
               </div>
             </Surface>
 
-            <ReviewSection locationId={location.location_id} compact />
+            <ReviewSection 
+              locationId={location.location_id} 
+              compact 
+              onReviewSuccess={() => {
+                setVisitStatus('COMPLETED');
+              }}
+            />
           </div>
 
           <aside className="lg:col-span-4 lg:sticky lg:top-24 space-y-6">

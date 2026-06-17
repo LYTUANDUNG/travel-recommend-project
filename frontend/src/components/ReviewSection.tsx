@@ -7,7 +7,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { Review } from '../types/schema';
 import { cn } from '../utils/cn';
 
-export default function ReviewSection({ locationId, compact = false }: { locationId: number; compact?: boolean }) {
+export default function ReviewSection({ locationId, compact = false, onReviewSuccess }: { locationId: number; compact?: boolean; onReviewSuccess?: () => void }) {
     const [rating, setRating] = useState(0);
     const [comment, setComment] = useState('');
     const [reviews, setReviews] = useState<Review[]>([]);
@@ -81,6 +81,7 @@ export default function ReviewSection({ locationId, compact = false }: { locatio
                     setReviews(prev => prev.map(item => item.review_id === res.data.review_id ? res.data : item));
                 } else {
                     setReviews(prev => [res.data, ...prev]);
+                    onReviewSuccess?.();
                 }
                 resetForm();
             } else {
