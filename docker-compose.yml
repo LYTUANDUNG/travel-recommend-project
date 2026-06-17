@@ -23,6 +23,46 @@ services:
       - "6379:6379"
     restart: always
 
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: travel_backend
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mysql
+      - redis
+    env_file:
+      - ./backend/.env
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/travel_recommendation
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=root
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - AI_SERVICE_BASE_URL=http://ai-service:8000
+    restart: always
+
+  ai-service:
+    build:
+      context: ./python_ai_service
+      dockerfile: Dockerfile
+    container_name: travel_ai_service
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mysql
+    env_file:
+      - ./python_ai_service/.env
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASS=root
+      - DB_NAME=travel_recommendation
+    restart: always
+
 networks:
   default:
     name: travel_network
