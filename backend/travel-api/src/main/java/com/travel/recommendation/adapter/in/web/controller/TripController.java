@@ -4,6 +4,7 @@ import com.travel.recommendation.domain.dto.ApiResponse;
 import com.travel.recommendation.domain.entity.Trip;
 import com.travel.recommendation.security.SecurityUtils;
 import com.travel.recommendation.service.TripService;
+import com.travel.recommendation.service.MailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +19,31 @@ import java.util.List;
 public class TripController {
 
     private final TripService tripService;
+    private final MailService mailService;
+
+    @PostMapping("/share")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> shareTrip(@RequestBody java.util.Map<String, String> payload) {
+        String email = payload.get("email");
+        String title = payload.get("title");
+        String content = payload.get("content");
+
+        if (email == null || email.trim().isEmpty()) {
+            return ResponseEntity.ok(ApiResponse.error("Email người nhận không được để trống"));
+        }
+        if (content == null || content.trim().isEmpty()) {
+            return ResponseEntity.ok(ApiResponse.error("Nội dung chia sẻ không được để trống"));
+        }
+
+        log.info("Yêu cầu gửi email chia sẻ lộ trình '{}' tới email: {}", title, email);
+        try {
+            mailService.sendEmail(email, "Chia sẻ lịch trình du lịch: " + (title != null ? title : "Không tiêu đề"), content);
+            return ResponseEntity.ok(ApiResponse.success(null, "Gửi email chia sẻ lịch trình thành công"));
+        } catch (Exception e) {
+            log.error("Lỗi khi gửi email chia sẻ lịch trình", e);
+            return ResponseEntity.ok(ApiResponse.error("Không thể gửi email: " + e.getMessage()));
+        }
+    }
 
     @GetMapping("/my")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")

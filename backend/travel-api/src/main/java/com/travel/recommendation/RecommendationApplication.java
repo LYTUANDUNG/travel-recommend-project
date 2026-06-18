@@ -10,19 +10,27 @@ import org.springframework.scheduling.annotation.EnableAsync;
 public class RecommendationApplication {
 
 	public static void main(String[] args) {
-		// Load .env file from the current directory (backend/) or root
+		// Load .env file from various possible locations
 		try {
-			Dotenv dotenv = Dotenv.configure()
-				.directory("./") // Try local directory first
-				.ignoreIfMalformed()
-				.ignoreIfMissing()
-				.load();
-			
-			dotenv.entries().forEach(entry -> {
-				System.setProperty(entry.getKey(), entry.getValue());
-			});
+			String[] paths = {"./", "../", "./backend", "../backend"};
+			for (String path : paths) {
+				java.io.File file = new java.io.File(path, ".env");
+				if (file.exists()) {
+					Dotenv dotenv = Dotenv.configure()
+						.directory(path)
+						.ignoreIfMalformed()
+						.ignoreIfMissing()
+						.load();
+					
+					dotenv.entries().forEach(entry -> {
+						System.setProperty(entry.getKey(), entry.getValue());
+					});
+					System.out.println("Dotenv: Loaded environment variables from " + file.getAbsolutePath());
+					break;
+				}
+			}
 		} catch (Exception e) {
-			// Ignore if failed, fallback to environment variables
+			System.err.println("Dotenv: Failed to load .env file: " + e.getMessage());
 		}
 
 		SpringApplication.run(RecommendationApplication.class, args);

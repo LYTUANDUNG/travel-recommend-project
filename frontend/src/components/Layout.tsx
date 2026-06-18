@@ -102,20 +102,6 @@ export default function Layout() {
                         })}
                     </nav>
                 </div>
-
-                {/* Desktop Sidebar Footer */}
-                {!isAuthenticated && (
-                    <div className="border-t border-slate-150 dark:border-slate-800/80 pt-5">
-                        <Button 
-                            variant="primary" 
-                            fullWidth 
-                            onClick={() => navigate('/login')}
-                            className="shadow-md"
-                        >
-                            Đăng nhập
-                        </Button>
-                    </div>
-                )}
             </aside>
 
             {/* ==================================================== */}

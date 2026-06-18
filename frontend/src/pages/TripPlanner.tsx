@@ -362,11 +362,33 @@ export default function TripPlanner() {
     setCopied(false);
   };
 
-  const handleSendEmail = () => {
-    const subject = encodeURIComponent(`Lịch trình du lịch: ${tripTitle}`);
-    const body = encodeURIComponent(emailBodyText);
-    window.location.href = `mailto:${recipientEmail}?subject=${subject}&body=${body}`;
-    setIsShareModalOpen(false);
+  const handleSendEmail = async () => {
+    if (!recipientEmail || !recipientEmail.trim()) {
+      alert("Vui lòng nhập email người nhận!");
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const response = await api.client.post('/trips/share', {
+        email: recipientEmail.trim(),
+        title: tripTitle,
+        content: emailBodyText
+      });
+      
+      if (response.data && response.data.success) {
+        alert("Đã gửi email chia sẻ lịch trình thành công!");
+        setIsShareModalOpen(false);
+        setRecipientEmail('');
+      } else {
+        alert("Gửi email thất bại: " + (response.data?.message || "Lỗi không xác định"));
+      }
+    } catch (error: any) {
+      console.error("Lỗi khi gửi email", error);
+      alert("Không thể gửi email: " + (error.response?.data?.message || error.message));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCopyItinerary = () => {

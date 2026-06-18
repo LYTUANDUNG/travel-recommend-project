@@ -41,6 +41,8 @@ Chúng tôi đã viết sẵn các kịch bản khởi chạy tự động hóa 
 *   Mở thư mục `backend` bằng phần mềm lập trình (khuyên dùng **IntelliJ IDEA** phiên bản mới nhất).
 *   Chờ IntelliJ IDEA tải xong các thư viện Gradle.
 *   Chạy class `RecommendationApplication` (nằm trong module `travel-api`). Server Backend sẽ tự khởi chạy trên cổng `8080`.
+*   *(Hoặc thầy/cô có thể biên dịch và khởi chạy Backend dưới dạng container Docker bằng cách xem chi tiết tại **Mục 5.5 - Phân hệ Backend (Docker Compose)** phía dưới).*
+
 
 ### Bước 3: Đăng nhập và Trải nghiệm
 *   Mở trình duyệt và truy cập: **`http://localhost:5173`**
@@ -102,6 +104,24 @@ cd backend
 # Build và chạy ứng dụng Spring Boot
 ./gradlew :travel-api:bootRun
 ```
+
+### 5. Phân hệ Backend (Docker Compose)
+Nếu thầy/cô muốn đóng gói và chạy phân hệ Backend hoàn toàn trong Docker cùng với Database và AI Service, vui lòng thực hiện các bước:
+1. **Biên dịch file JAR cho Backend**:
+   Do Dockerfile của Backend copy file JAR đã được compile sẵn, thầy/cô cần chạy lệnh sau tại thư mục `backend` trước để sinh file JAR:
+   ```bash
+   cd backend
+   # Build file JAR
+   ./gradlew :travel-api:bootJar
+   cd ..
+   ```
+2. **Khởi chạy bằng Docker Compose**:
+   ```bash
+   # Build và khởi chạy các container (bao gồm cả backend)
+   docker-compose up -d --build
+   ```
+   *Lưu ý: Sau khi chạy lệnh này, Backend sẽ chạy ngầm tại cổng `8080` bên trong container Docker.*
+
 
 ---
 

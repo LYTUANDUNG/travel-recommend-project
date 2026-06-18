@@ -47,7 +47,7 @@ server:
       enabled: true
 
 cloudinary:
-  url: ${CLOUDINARY_URL:cloudinary://214292353552372:-0LUsrI3h2LII2oYO6s9ylU9Sco@dlh7xxigk}
+  url: ${CLOUDINARY_URL:your_cloudinary_url}
 
 logging:
   level:
